@@ -10,337 +10,349 @@ import StatCard from "@/components/dashboard/StatCard";
 import QuickActionGrid from "@/components/dashboard/QuickActionGrid";
 import ChecklistPanel from "@/components/onboarding/ChecklistPanel";
 import {
-  Briefcase,
-  FolderOpen,
-  FileText,
-  Search,
-  TrendingUp,
-  DollarSign,
-  CheckCircle,
+	Briefcase,
+	FolderOpen,
+	FileText,
+	Search,
+	TrendingUp,
+	DollarSign,
+	CheckCircle,
 } from "lucide-react";
 
 export default function ClientDashboard() {
-  const router = useRouter();
-  const [profile, setProfile] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [unreadNotifications, setUnreadNotifications] = useState(0);
-  const [showChecklist, setShowChecklist] = useState(false);
-  const [dismissingChecklist, setDismissingChecklist] = useState(false);
-  const [isChecklistExpanded, setIsChecklistExpanded] = useState(true);
-  const [stats, setStats] = useState({
-    activeProjects: 0,
-    totalSpent: 0,
-    completedProjects: 0,
-  });
-  const { theme, toggleTheme } = useTheme();
-  const supabase = useMemo(() => createClient(), []);
+	const router = useRouter();
+	const [profile, setProfile] = useState<any>(null);
+	const [loading, setLoading] = useState(true);
+	const [unreadCount, setUnreadCount] = useState(0);
+	const [unreadNotifications, setUnreadNotifications] = useState(0);
+	const [showChecklist, setShowChecklist] = useState(false);
+	const [dismissingChecklist, setDismissingChecklist] = useState(false);
+	const [isChecklistExpanded, setIsChecklistExpanded] = useState(true);
+	const [stats, setStats] = useState({
+		activeProjects: 0,
+		totalSpent: 0,
+		completedProjects: 0,
+	});
+	const { theme, toggleTheme } = useTheme();
+	const supabase = useMemo(() => createClient(), []);
 
-  const getCurrentUser = useCallback(async (): Promise<any> => {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (session?.user) {
-      return session.user;
-    }
+	useEffect(() => {
+		if (typeof window === "undefined") return;
+		try {
+			const raw = sessionStorage.getItem("sch_notifications");
+			if (!raw) return;
+			const parsed = JSON.parse(raw) as {
+				unreadCount?: number;
+				notifications?: { is_read: boolean }[];
+			};
+			if (typeof parsed.unreadCount === "number") {
+				setUnreadNotifications(parsed.unreadCount);
+				return;
+			}
+			if (Array.isArray(parsed.notifications)) {
+				const count = parsed.notifications.filter(
+					(item) => !item.is_read,
+				).length;
+				setUnreadNotifications(count);
+			}
+		} catch {
+			// Ignore cache errors.
+		}
+	}, []);
 
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser();
+	const getCurrentUser = useCallback(async (): Promise<any> => {
+		const {
+			data: { session },
+		} = await supabase.auth.getSession();
+		if (session?.user) {
+			return session.user;
+		}
 
-    if (error) {
-      throw error;
-    }
+		const {
+			data: { user },
+			error,
+		} = await supabase.auth.getUser();
 
-    return user;
-  }, [supabase]);
+		if (error) {
+			throw error;
+		}
 
-  useEffect(() => {
-    const getProfile = async () => {
-      try {
-        const user = await getCurrentUser();
-        if (!user) {
-          router.push("/login");
-          return;
-        }
+		return user;
+	}, [supabase]);
 
-        const { data } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", user.id)
-          .single();
+	useEffect(() => {
+		const getProfile = async () => {
+			try {
+				const user = await getCurrentUser();
+				if (!user) {
+					router.push("/login");
+					return;
+				}
 
-        setProfile(data);
+				const { data } = await supabase
+					.from("profiles")
+					.select("*")
+					.eq("id", user.id)
+					.single();
 
-        const { data: contracts } = await supabase
-          .from("contracts")
-          .select("id, status, escrow_amount, payment_released_at")
-          .eq("client_id", user.id);
+				setProfile(data);
 
-        const { count: jobsCount } = await supabase
-          .from("jobs")
-          .select("id", { count: "exact", head: true })
-          .eq("client_id", user.id);
+				const { data: contracts } = await supabase
+					.from("contracts")
+					.select("id, status, escrow_amount, payment_released_at")
+					.eq("client_id", user.id);
 
-        const { data: clientProfile } = await supabase
-          .from("client_profiles")
-          .select("onboarding_dismissed_at")
-          .eq("id", user.id)
-          .maybeSingle();
+				const { count: jobsCount } = await supabase
+					.from("jobs")
+					.select("id", { count: "exact", head: true })
+					.eq("client_id", user.id);
 
-        if (contracts) {
-          const active = contracts.filter((c) => c.status === "active").length;
-          const completed = contracts.filter(
-            (c) => c.payment_released_at !== null,
-          ).length;
-          const spent = contracts
-            .filter((c) => c.payment_released_at !== null)
-            .reduce((sum, c) => sum + Number(c.escrow_amount || 0), 0);
+				const { data: clientProfile } = await supabase
+					.from("client_profiles")
+					.select("onboarding_dismissed_at")
+					.eq("id", user.id)
+					.maybeSingle();
 
-          setStats({
-            activeProjects: active,
-            totalSpent: spent,
-            completedProjects: completed,
-          });
+				if (contracts) {
+					const active = contracts.filter((c) => c.status === "active").length;
+					const completed = contracts.filter(
+						(c) => c.payment_released_at !== null,
+					).length;
+					const spent = contracts
+						.filter((c) => c.payment_released_at !== null)
+						.reduce((sum, c) => sum + Number(c.escrow_amount || 0), 0);
 
-          const hasPostedJob = Number(jobsCount || 0) > 0;
-          const hasAnyContract = contracts.length > 0;
-          const isDismissed = Boolean(clientProfile?.onboarding_dismissed_at);
-          if (!isDismissed && !(hasPostedJob && hasAnyContract)) {
-            setShowChecklist(true);
-          }
-        }
+					setStats({
+						activeProjects: active,
+						totalSpent: spent,
+						completedProjects: completed,
+					});
 
-        setLoading(false);
+					const hasPostedJob = Number(jobsCount || 0) > 0;
+					const hasAnyContract = contracts.length > 0;
+					const isDismissed = Boolean(clientProfile?.onboarding_dismissed_at);
+					if (!isDismissed && !(hasPostedJob && hasAnyContract)) {
+						setShowChecklist(true);
+					}
+				}
 
-        const fetchUnread = async () => {
-          const { data: activeContracts } = await supabase
-            .from("contracts")
-            .select("id")
-            .eq("client_id", user.id)
-            .in("status", ["active", "completed"]);
+				setLoading(false);
 
-          if (!activeContracts || activeContracts.length === 0) return;
+				const fetchUnread = async () => {
+					const { data: activeContracts } = await supabase
+						.from("contracts")
+						.select("id")
+						.eq("client_id", user.id)
+						.in("status", ["active", "completed"]);
 
-          const contractIds = activeContracts.map((c) => c.id);
-          const { count } = await supabase
-            .from("messages")
-            .select("id", { count: "exact", head: true })
-            .in("contract_id", contractIds)
-            .neq("sender_id", user.id)
-            .eq("is_read", false);
+					if (!activeContracts || activeContracts.length === 0) return;
 
-          setUnreadCount(count || 0);
-        };
+					const contractIds = activeContracts.map((c) => c.id);
+					const { count } = await supabase
+						.from("messages")
+						.select("id", { count: "exact", head: true })
+						.in("contract_id", contractIds)
+						.neq("sender_id", user.id)
+						.eq("is_read", false);
 
-        fetchUnread();
+					setUnreadCount(count || 0);
+				};
 
-        const fetchUnreadNotifications = async () => {
-          const { count } = await supabase
-            .from("notifications")
-            .select("id", { count: "exact", head: true })
-            .eq("user_id", user.id)
-            .eq("is_read", false);
+				fetchUnread();
 
-          setUnreadNotifications(count || 0);
-        };
+				const { data: activeContracts } = await supabase
+					.from("contracts")
+					.select("id")
+					.eq("client_id", user.id)
+					.in("status", ["active", "completed"]);
 
-        fetchUnreadNotifications();
+				if (activeContracts && activeContracts.length > 0) {
+					const channel = supabase
+						.channel("client-unread-messages")
+						.on(
+							"postgres_changes",
+							{ event: "INSERT", schema: "public", table: "messages" },
+							(payload) => {
+								const msg = payload.new as any;
+								const isMyContract = activeContracts.some(
+									(c) => c.id === msg.contract_id,
+								);
+								if (isMyContract && msg.sender_id !== user.id) {
+									setUnreadCount((prev) => prev + 1);
+								}
+							},
+						)
+						.subscribe();
 
-        const { data: activeContracts } = await supabase
-          .from("contracts")
-          .select("id")
-          .eq("client_id", user.id)
-          .in("status", ["active", "completed"]);
+					return () => {
+						supabase.removeChannel(channel);
+					};
+				}
+			} catch (error) {
+				console.error("Failed to load client dashboard", error);
+				router.push("/login");
+			} finally {
+				setLoading(false);
+			}
+		};
 
-        if (activeContracts && activeContracts.length > 0) {
-          const channel = supabase
-            .channel("client-unread-messages")
-            .on(
-              "postgres_changes",
-              { event: "INSERT", schema: "public", table: "messages" },
-              (payload) => {
-                const msg = payload.new as any;
-                const isMyContract = activeContracts.some(
-                  (c) => c.id === msg.contract_id,
-                );
-                if (isMyContract && msg.sender_id !== user.id) {
-                  setUnreadCount((prev) => prev + 1);
-                }
-              },
-            )
-            .subscribe();
+		getProfile();
+	}, [getCurrentUser, router, supabase]);
 
-          return () => {
-            supabase.removeChannel(channel);
-          };
-        }
-      } catch (error) {
-        console.error("Failed to load client dashboard", error);
-        router.push("/login");
-      } finally {
-        setLoading(false);
-      }
-    };
+	const handleLogout = async () => {
+		await supabase.auth.signOut();
+		router.push("/login");
+	};
 
-    getProfile();
-  }, [getCurrentUser, router, supabase]);
+	const dismissChecklist = async () => {
+		setDismissingChecklist(true);
+		setShowChecklist(false);
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push("/login");
-  };
+		let user = null;
+		try {
+			user = await getCurrentUser();
+		} catch (error) {
+			console.error("Failed to resolve user for checklist dismiss", error);
+		}
 
-  const dismissChecklist = async () => {
-    setDismissingChecklist(true);
-    setShowChecklist(false);
+		if (user) {
+			await supabase
+				.from("client_profiles")
+				.update({ onboarding_dismissed_at: new Date().toISOString() })
+				.eq("id", user.id);
+		}
 
-    let user = null;
-    try {
-      user = await getCurrentUser();
-    } catch (error) {
-      console.error("Failed to resolve user for checklist dismiss", error);
-    }
+		setDismissingChecklist(false);
+	};
 
-    if (user) {
-      await supabase
-        .from("client_profiles")
-        .update({ onboarding_dismissed_at: new Date().toISOString() })
-        .eq("id", user.id);
-    }
+	const toggleChecklistExpanded = () => {
+		setIsChecklistExpanded((prev) => !prev);
+	};
 
-    setDismissingChecklist(false);
-  };
+	if (loading) {
+		return (
+			<div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
+				<div className="text-gray-500 dark:text-gray-400">Loading...</div>
+			</div>
+		);
+	}
 
-  const toggleChecklistExpanded = () => {
-    setIsChecklistExpanded((prev) => !prev);
-  };
+	const quickActions = [
+		{
+			href: "/jobs/post",
+			icon: (
+				<Briefcase className="w-5 h-5 text-green-700 dark:text-green-300" />
+			),
+			iconBg: "bg-green-100 dark:bg-green-900/40",
+			label: "Post a Job",
+			desc: "Find the right professional for your project",
+		},
+		{
+			href: "/dashboard/client/jobs",
+			icon: <FolderOpen className="w-5 h-5 text-blue-700 dark:text-blue-300" />,
+			iconBg: "bg-blue-100 dark:bg-blue-900/40",
+			label: "My Jobs",
+			desc: "View applications for your posted jobs",
+		},
+		{
+			href: "/dashboard/client/contracts",
+			icon: (
+				<FileText className="w-5 h-5 text-purple-700 dark:text-purple-300" />
+			),
+			iconBg: "bg-purple-100 dark:bg-purple-900/40",
+			label: "My Contracts",
+			desc: "Review completed work and release payments",
+			badge: unreadCount,
+		},
+		{
+			href: "/professionals",
+			icon: <Search className="w-5 h-5 text-orange-700 dark:text-orange-300" />,
+			iconBg: "bg-orange-100 dark:bg-orange-900/40",
+			label: "Browse Professionals",
+			desc: "Search verified geospatial experts",
+		},
+	];
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
-        <div className="text-gray-500 dark:text-gray-400">Loading...</div>
-      </div>
-    );
-  }
+	return (
+		<div className="min-h-screen bg-gray-50 dark:bg-gray-950 transition-colors duration-300">
+			<nav className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4 flex items-center justify-between">
+				<AppBrand />
+				<DashboardHeaderActions
+					theme={theme}
+					toggleTheme={toggleTheme}
+					fullName={profile?.full_name || ""}
+					unreadNotifications={unreadNotifications}
+					onUnreadNotificationsChange={setUnreadNotifications}
+					onLogout={handleLogout}
+				/>
+			</nav>
 
-  const quickActions = [
-    {
-      href: "/jobs/post",
-      icon: (
-        <Briefcase className="w-5 h-5 text-green-700 dark:text-green-300" />
-      ),
-      iconBg: "bg-green-100 dark:bg-green-900/40",
-      label: "Post a Job",
-      desc: "Find the right professional for your project",
-    },
-    {
-      href: "/dashboard/client/jobs",
-      icon: <FolderOpen className="w-5 h-5 text-blue-700 dark:text-blue-300" />,
-      iconBg: "bg-blue-100 dark:bg-blue-900/40",
-      label: "My Jobs",
-      desc: "View applications for your posted jobs",
-    },
-    {
-      href: "/dashboard/client/contracts",
-      icon: (
-        <FileText className="w-5 h-5 text-purple-700 dark:text-purple-300" />
-      ),
-      iconBg: "bg-purple-100 dark:bg-purple-900/40",
-      label: "My Contracts",
-      desc: "Review completed work and release payments",
-      badge: unreadCount,
-    },
-    {
-      href: "/professionals",
-      icon: <Search className="w-5 h-5 text-orange-700 dark:text-orange-300" />,
-      iconBg: "bg-orange-100 dark:bg-orange-900/40",
-      label: "Browse Professionals",
-      desc: "Search verified geospatial experts",
-    },
-  ];
+			<div className="max-w-6xl mx-auto px-6 py-8">
+				<div className="mb-8">
+					<h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+						Welcome back, {profile?.full_name?.split(" ")[0]}!
+					</h2>
+					<p className="text-gray-500 dark:text-gray-400 mt-1">
+						Find and hire the best geospatial professionals
+					</p>
+				</div>
 
-  return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 transition-colors duration-300">
-      <nav className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4 flex items-center justify-between">
-        <AppBrand />
-        <DashboardHeaderActions
-          theme={theme}
-          toggleTheme={toggleTheme}
-          fullName={profile?.full_name || ""}
-          unreadNotifications={unreadNotifications}
-          onUnreadNotificationsChange={setUnreadNotifications}
-          onLogout={handleLogout}
-        />
-      </nav>
+				{showChecklist && (
+					<ChecklistPanel
+						title="Welcome Checklist"
+						subtitle="Set up your account and start hiring faster"
+						items={[
+							{
+								id: "profile",
+								label: "Complete your basic profile in /profile",
+								completed: Boolean(profile?.full_name && profile?.country),
+							},
+							{
+								id: "job",
+								label: "Post your first job",
+								completed:
+									stats.activeProjects > 0 || stats.completedProjects > 0,
+							},
+							{
+								id: "contract",
+								label: "Start your first contract",
+								completed: stats.completedProjects > 0,
+							},
+						]}
+						onDismiss={dismissChecklist}
+						dismissing={dismissingChecklist}
+						isExpanded={isChecklistExpanded}
+						onToggleExpand={toggleChecklistExpanded}
+					/>
+				)}
 
-      <div className="max-w-6xl mx-auto px-6 py-8">
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Welcome back, {profile?.full_name?.split(" ")[0]}!
-          </h2>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">
-            Find and hire the best geospatial professionals
-          </p>
-        </div>
+				{/* Stats */}
+				<div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+					<StatCard
+						title="Active Projects"
+						value={stats.activeProjects}
+						icon={<TrendingUp className="w-4 h-4" />}
+						iconBgClass="bg-blue-100 dark:bg-blue-900/40"
+						iconColorClass="text-blue-600 dark:text-blue-400"
+					/>
+					<StatCard
+						title="Total Spent"
+						value={`$${stats.totalSpent.toLocaleString()}`}
+						icon={<DollarSign className="w-4 h-4" />}
+						iconBgClass="bg-green-100 dark:bg-green-900/40"
+						iconColorClass="text-green-600 dark:text-green-400"
+					/>
+					<StatCard
+						title="Completed Projects"
+						value={stats.completedProjects}
+						icon={<CheckCircle className="w-4 h-4" />}
+						iconBgClass="bg-purple-100 dark:bg-purple-900/40"
+						iconColorClass="text-purple-600 dark:text-purple-400"
+					/>
+				</div>
 
-        {showChecklist && (
-          <ChecklistPanel
-            title="Welcome Checklist"
-            subtitle="Set up your account and start hiring faster"
-            items={[
-              {
-                id: "profile",
-                label: "Complete your basic profile in /profile",
-                completed: Boolean(profile?.full_name && profile?.country),
-              },
-              {
-                id: "job",
-                label: "Post your first job",
-                completed:
-                  stats.activeProjects > 0 || stats.completedProjects > 0,
-              },
-              {
-                id: "contract",
-                label: "Start your first contract",
-                completed: stats.completedProjects > 0,
-              },
-            ]}
-            onDismiss={dismissChecklist}
-            dismissing={dismissingChecklist}
-            isExpanded={isChecklistExpanded}
-            onToggleExpand={toggleChecklistExpanded}
-          />
-        )}
-
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <StatCard
-            title="Active Projects"
-            value={stats.activeProjects}
-            icon={<TrendingUp className="w-4 h-4" />}
-            iconBgClass="bg-blue-100 dark:bg-blue-900/40"
-            iconColorClass="text-blue-600 dark:text-blue-400"
-          />
-          <StatCard
-            title="Total Spent"
-            value={`$${stats.totalSpent.toLocaleString()}`}
-            icon={<DollarSign className="w-4 h-4" />}
-            iconBgClass="bg-green-100 dark:bg-green-900/40"
-            iconColorClass="text-green-600 dark:text-green-400"
-          />
-          <StatCard
-            title="Completed Projects"
-            value={stats.completedProjects}
-            icon={<CheckCircle className="w-4 h-4" />}
-            iconBgClass="bg-purple-100 dark:bg-purple-900/40"
-            iconColorClass="text-purple-600 dark:text-purple-400"
-          />
-        </div>
-
-        <QuickActionGrid actions={quickActions} />
-      </div>
-    </div>
-  );
+				<QuickActionGrid actions={quickActions} />
+			</div>
+		</div>
+	);
 }
