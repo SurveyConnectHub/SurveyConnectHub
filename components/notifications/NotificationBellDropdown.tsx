@@ -105,7 +105,7 @@ export default function NotificationBellDropdown({
 			const data = await response.json().catch(() => ({}));
 			if (!response.ok) return;
 
-			const serverItems = Array.isArray(data.notifications)
+			const serverItems: NotificationItem[] = Array.isArray(data.notifications)
 				? data.notifications
 				: [];
 			const cachedItems = notificationsRef.current;
