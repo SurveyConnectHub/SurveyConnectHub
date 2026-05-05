@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
 				title: "Job marked complete",
 				message: `${
 					professionalProfile?.full_name ?? "The professional"
-				} marked "${contract.jobs?.title ?? "your job"}" complete.`,
+				} marked "${contract.jobs?.[0]?.title ?? "your job"}" complete.`,
 				type: "contract",
 				link: "/dashboard/client/contracts",
 				is_read: false,
