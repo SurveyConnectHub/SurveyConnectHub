@@ -18,6 +18,7 @@ export default function SignupPage() {
 		role: "" as "client" | "professional" | "",
 		country: "",
 		phone: "",
+		agreedTerms: false,
 	});
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState("");
@@ -27,7 +28,9 @@ export default function SignupPage() {
 	const handleChange = (
 		e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
 	) => {
-		setFormData({ ...formData, [e.target.name]: e.target.value });
+		const target = e.target as HTMLInputElement;
+		const value = target.type === "checkbox" ? target.checked : target.value;
+		setFormData({ ...formData, [target.name]: value });
 	};
 
 	const handleSubmit = async (e: React.FormEvent) => {
@@ -44,6 +47,10 @@ export default function SignupPage() {
 		}
 		if (formData.password.length < 8) {
 			setError("Password must be at least 8 characters");
+			return;
+		}
+		if (!formData.agreedTerms) {
+			setError("Please agree to the Terms of Service and Privacy Policy");
 			return;
 		}
 
@@ -308,6 +315,37 @@ export default function SignupPage() {
 							</button>
 						</div>
 					</div>
+
+					<label className="flex items-start gap-3 text-sm text-gray-600 dark:text-gray-300">
+						<input
+							type="checkbox"
+							name="agreedTerms"
+							checked={formData.agreedTerms}
+							onChange={handleChange}
+							className="mt-1 h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500 dark:border-gray-700"
+							required
+						/>
+						<span>
+							I agree to the{" "}
+							<Link
+								href="/terms"
+								target="_blank"
+								rel="noreferrer"
+								className="text-green-600 hover:underline"
+							>
+								Terms of Service
+							</Link>{" "}
+							and{" "}
+							<Link
+								href="/privacy"
+								target="_blank"
+								rel="noreferrer"
+								className="text-green-600 hover:underline"
+							>
+								Privacy Policy
+							</Link>
+						</span>
+					</label>
 
 					{/* Submit Button */}
 					<button
