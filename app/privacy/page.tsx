@@ -16,12 +16,13 @@ export default function PrivacyPage() {
 
 				<section className="mt-8 space-y-4">
 					<p>
-						SurveyConnectHub ("SurveyConnectHub," "Company," "we," "us," or
-						"our") respects your privacy and is committed to protecting personal
-						information. This Privacy Policy explains how we collect, use,
-						disclose, store, and protect information when you use our website,
-						mobile applications, software, and related services (collectively,
-						the "Platform").
+						SurveyConnectHub (&quot;SurveyConnectHub,&quot; &quot;Company,&quot;
+						&quot;we,&quot; &quot;us,&quot; or &quot;our&quot;) respects your
+						privacy and is committed to protecting personal information. This
+						Privacy Policy explains how we collect, use, disclose, store, and
+						protect information when you use our website, mobile applications,
+						software, and related services (collectively, the
+						&quot;Platform&quot;).
 					</p>
 					<p>By using the Platform, you acknowledge this Privacy Policy.</p>
 				</section>

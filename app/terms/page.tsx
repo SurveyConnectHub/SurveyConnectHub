@@ -16,10 +16,12 @@ export default function TermsPage() {
 
 				<section className="mt-8 space-y-4">
 					<p>
-						Welcome to SurveyConnectHub ("SurveyConnectHub," "Company," "we,"
-						"us," or "our"). These Terms of Service ("Terms") govern your access
-						to and use of the Interconnection website, mobile applications,
-						software, and related services (collectively, the "Platform").
+						Welcome to SurveyConnectHub (&quot;SurveyConnectHub,&quot;
+						&quot;Company,&quot; &quot;we,&quot; &quot;us,&quot; or
+						&quot;our&quot;). These Terms of Service (&quot;Terms&quot;) govern
+						your access to and use of the Interconnection website, mobile
+						applications, software, and related services (collectively, the
+						&quot;Platform&quot;).
 					</p>
 					<p>
 						By accessing or using the Platform, you agree to be bound by these
@@ -311,8 +313,8 @@ export default function TermsPage() {
 							16. Disclaimers
 						</h2>
 						<p className="mt-2">
-							The Platform is provided on an "as available" and "as is" basis to
-							the maximum extent permitted by law.
+							The Platform is provided on an &quot;as available&quot; and
+							&quot;as is&quot; basis to the maximum extent permitted by law.
 						</p>
 						<p className="mt-2">We do not guarantee:</p>
 						<ul className="mt-2 list-disc space-y-1 pl-5">
