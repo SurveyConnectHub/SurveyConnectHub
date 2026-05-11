@@ -11,10 +11,7 @@ import { CardSkeleton } from "@/components/ui/Skeleton";
 import type { Contract, Job, Profile } from "@/types/database";
 
 type ContractRow = Contract & {
-	jobs: Pick<
-		Job,
-		"title" | "description" | "location_city" | "location_country"
-	> | null;
+	jobs: Pick<Job, "title" | "description" | "location" | "job_type"> | null;
 	profiles: Pick<Profile, "full_name" | "email"> | null;
 };
 
@@ -38,7 +35,7 @@ export default function ProfessionalContractsPage() {
 			const { data } = await supabase
 				.from("contracts")
 				.select(
-					`*, jobs(title, description, location_city, location_country), profiles!contracts_client_id_fkey(full_name, email)`,
+					`*, jobs(title, description, location, job_type), profiles!contracts_client_id_fkey(full_name, email)`,
 				)
 				.eq("professional_id", user.id)
 				.in("status", ["active", "completed"])
@@ -210,12 +207,10 @@ export default function ProfessionalContractsPage() {
 
 											<div className="flex items-center gap-4 text-xs text-gray-400 dark:text-gray-500">
 												<span>
-													{[
-														contract.jobs?.location_city,
-														contract.jobs?.location_country,
-													]
-														.filter(Boolean)
-														.join(", ")}
+													{contract.jobs?.location ||
+														(contract.jobs?.job_type === "remote"
+															? "Remote"
+															: "")}
 												</span>
 												<span>Started {formatDate(contract.start_date)}</span>
 											</div>

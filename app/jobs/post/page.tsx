@@ -12,18 +12,19 @@ export default function PostJobPage() {
 	const [pageLoading, setPageLoading] = useState(true);
 	const [error, setError] = useState("");
 	const [user, setUser] = useState<any>(null);
-	const [customCountry, setCustomCountry] = useState("");
+	const [requiredSkills, setRequiredSkills] = useState<string[]>([]);
+	const [skillInput, setSkillInput] = useState("");
+	const [briefFile, setBriefFile] = useState<File | null>(null);
 
 	const [formData, setFormData] = useState({
 		title: "",
 		description: "",
 		profession_type: "",
+		job_type: "",
+		location: "",
+		estimated_duration: "",
 		budget: "",
 		budget_type: "fixed",
-		location_country: "",
-		location_city: "",
-		is_remote: false,
-		deadline: "",
 		required_verification: true,
 	});
 
@@ -85,6 +86,14 @@ export default function PostJobPage() {
 			setError("Please select a profession type");
 			return;
 		}
+		if (!formData.job_type) {
+			setError("Please select a job type");
+			return;
+		}
+		if (formData.job_type === "on_site" && !formData.location.trim()) {
+			setError("Location is required for on-site roles");
+			return;
+		}
 		if (!formData.budget) {
 			setError("Budget is required");
 			return;
@@ -100,30 +109,35 @@ export default function PostJobPage() {
 			return;
 		}
 
-		if (formData.location_country === "Other" && !customCountry.trim()) {
-			setError("Please enter your country.");
-			return;
-		}
-
-		const finalCountry =
-			formData.location_country === "Other"
-				? customCountry.trim()
-				: formData.location_country;
-
 		setLoading(true);
 
 		try {
+			let briefAttachmentUrl: string | null = null;
+			if (briefFile) {
+				const cleanName = briefFile.name.replace(/[^a-zA-Z0-9._-]/g, "-");
+				const briefPath = `${user.id}/job-brief-${Date.now()}-${cleanName}`;
+				const { error: uploadError } = await supabase.storage
+					.from("job-briefs")
+					.upload(briefPath, briefFile);
+
+				if (uploadError) {
+					throw uploadError;
+				}
+				briefAttachmentUrl = briefPath;
+			}
+
 			const { error: jobError } = await supabase.from("jobs").insert({
 				client_id: user.id,
 				title: formData.title,
 				description: formData.description,
 				profession_type: formData.profession_type,
+				job_type: formData.job_type,
+				location: formData.job_type === "on_site" ? formData.location : null,
+				required_skills: requiredSkills,
+				estimated_duration: formData.estimated_duration || null,
+				brief_attachment_url: briefAttachmentUrl,
 				budget: parseFloat(formData.budget),
 				budget_type: formData.budget_type,
-				location_country: finalCountry,
-				location_city: formData.location_city,
-				is_remote: formData.is_remote,
-				deadline: formData.deadline || null,
 				required_verification: formData.required_verification,
 				status: "open",
 			});
@@ -136,6 +150,23 @@ export default function PostJobPage() {
 		} finally {
 			setLoading(false);
 		}
+	};
+
+	const handleSkillKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+		if (e.key !== "Enter") return;
+		e.preventDefault();
+		const value = skillInput.trim();
+		if (!value) return;
+		if (requiredSkills.includes(value)) {
+			setSkillInput("");
+			return;
+		}
+		setRequiredSkills((prev) => [...prev, value]);
+		setSkillInput("");
+	};
+
+	const removeSkill = (skill: string) => {
+		setRequiredSkills((prev) => prev.filter((item) => item !== skill));
 	};
 
 	if (pageLoading) {
@@ -236,6 +267,39 @@ export default function PostJobPage() {
 							</select>
 						</div>
 
+						<div>
+							<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+								Job Type <span className="text-red-500">*</span>
+							</label>
+							<select
+								name="job_type"
+								value={formData.job_type}
+								onChange={handleChange}
+								className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800 dark:placeholder-gray-400"
+							>
+								<option value="">Select job type</option>
+								<option value="remote">Remote</option>
+								<option value="on_site">On-site</option>
+								<option value="hybrid">Hybrid</option>
+							</select>
+						</div>
+
+						{formData.job_type === "on_site" && (
+							<div>
+								<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+									Location <span className="text-red-500">*</span>
+								</label>
+								<input
+									type="text"
+									name="location"
+									value={formData.location}
+									onChange={handleChange}
+									placeholder="Enter job location"
+									className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800 placeholder-gray-400 dark:placeholder-gray-500 dark:placeholder-gray-400"
+								/>
+							</div>
+						)}
+
 						{/* Budget */}
 						<div className="grid grid-cols-2 gap-4">
 							<div>
@@ -277,81 +341,76 @@ export default function PostJobPage() {
 							</div>
 						</div>
 
-						<div className="grid grid-cols-2 gap-4">
-							<div>
-								<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-									Country
-								</label>
-								<select
-									name="location_country"
-									value={formData.location_country}
-									onChange={handleChange}
-									className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800 dark:placeholder-gray-400"
-								>
-									<option value="">Select country</option>
-									<option value="Nigeria">Nigeria</option>
-									<option value="Ghana">Ghana</option>
-									<option value="Kenya">Kenya</option>
-									<option value="South Africa">South Africa</option>
-									<option value="Côte d'Ivoire">Côte d&apos;Ivoire</option>
-									<option value="Senegal">Senegal</option>
-									<option value="Tanzania">Tanzania</option>
-									<option value="Uganda">Uganda</option>
-									<option value="United Kingdom">United Kingdom</option>
-									<option value="United States">United States</option>
-									<option value="Other">Other</option>
-								</select>
-								{formData.location_country === "Other" && (
-									<input
-										type="text"
-										value={customCountry}
-										onChange={(e) => setCustomCountry(e.target.value)}
-										placeholder="Enter your country"
-										className="w-full mt-2 px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800 placeholder-gray-400 dark:placeholder-gray-500 dark:placeholder-gray-400"
-									/>
-								)}
+						<div>
+							<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+								Required Skills
+							</label>
+							<div className="flex flex-wrap gap-2 mb-2">
+								{requiredSkills.map((skill) => (
+									<span
+										key={skill}
+										className="inline-flex items-center gap-2 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 px-3 py-1 text-sm"
+									>
+										{skill}
+										<button
+											type="button"
+											onClick={() => removeSkill(skill)}
+											className="text-gray-400 hover:text-gray-600 dark:text-gray-400 dark:hover:text-gray-200"
+										>
+											×
+										</button>
+									</span>
+								))}
 							</div>
-							<div>
-								<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-									City
-								</label>
-								<input
-									type="text"
-									name="location_city"
-									value={formData.location_city}
-									onChange={handleChange}
-									placeholder="e.g. Lagos"
-									className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800 placeholder-gray-400 dark:placeholder-gray-500 dark:placeholder-gray-400"
-								/>
-							</div>
+							<input
+								type="text"
+								value={skillInput}
+								onChange={(e) => setSkillInput(e.target.value)}
+								onKeyDown={handleSkillKeyDown}
+								placeholder="Type a skill and press Enter"
+								className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800 placeholder-gray-400 dark:placeholder-gray-500 dark:placeholder-gray-400"
+							/>
+							<p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
+								Add multiple skills by pressing Enter after each one.
+							</p>
 						</div>
 
 						<div>
 							<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-								Application Deadline
+								Estimated Duration
 							</label>
-							<input
-								type="date"
-								name="deadline"
-								value={formData.deadline}
+							<select
+								name="estimated_duration"
+								value={formData.estimated_duration}
 								onChange={handleChange}
 								className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800 dark:placeholder-gray-400"
+							>
+								<option value="">Select duration</option>
+								<option value="1_day">1 Day</option>
+								<option value="3_days">3 Days</option>
+								<option value="1_week">1 Week</option>
+								<option value="2_weeks">2 Weeks</option>
+								<option value="1_month">1 Month</option>
+								<option value="3_months">3 Months</option>
+								<option value="6_months">6 Months</option>
+							</select>
+						</div>
+
+						<div>
+							<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+								Job Brief Attachment
+							</label>
+							<input
+								type="file"
+								onChange={(e) => setBriefFile(e.target.files?.[0] || null)}
+								className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800"
 							/>
+							<p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
+								Upload a document or file with additional job details.
+							</p>
 						</div>
 
 						<div className="space-y-3">
-							<label className="flex items-center gap-3 cursor-pointer">
-								<input
-									type="checkbox"
-									name="is_remote"
-									checked={formData.is_remote}
-									onChange={handleChange}
-									className="w-4 h-4 text-green-600 rounded dark:text-white dark:placeholder-gray-400"
-								/>
-								<span className="text-sm text-gray-700 dark:text-gray-300">
-									This job can be done remotely
-								</span>
-							</label>
 							<label className="flex items-center gap-3 cursor-pointer">
 								<input
 									type="checkbox"

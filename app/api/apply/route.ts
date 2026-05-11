@@ -34,9 +34,24 @@ export async function POST(request: NextRequest) {
 	}
 
 	const body = await request.json().catch(() => ({}));
-	const { jobId, coverLetter, proposedRate, availabilityDate } = body;
+	const {
+		jobId,
+		coverLetter,
+		proposedRate,
+		estimatedDelivery,
+		relevantExperience,
+		questionsForClient,
+		portfolioItemId,
+		portfolioAttachmentUrl,
+	} = body;
 
-	if (!jobId || !coverLetter?.trim() || !proposedRate || !availabilityDate) {
+	if (
+		!jobId ||
+		!coverLetter?.trim() ||
+		!proposedRate ||
+		!estimatedDelivery ||
+		!relevantExperience?.trim()
+	) {
 		return NextResponse.json(
 			{ error: "Missing required fields" },
 			{ status: 400 },
@@ -78,7 +93,11 @@ export async function POST(request: NextRequest) {
 		professional_id: user.id,
 		cover_letter: coverLetter.trim(),
 		proposed_rate: parsedRate,
-		availability_date: availabilityDate,
+		estimated_delivery: estimatedDelivery,
+		relevant_experience: relevantExperience.trim(),
+		questions_for_client: questionsForClient?.trim() || null,
+		portfolio_item_id: portfolioItemId || null,
+		portfolio_attachment_url: portfolioAttachmentUrl || null,
 		status: "pending",
 	});
 

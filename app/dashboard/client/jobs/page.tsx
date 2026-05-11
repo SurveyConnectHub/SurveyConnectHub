@@ -6,7 +6,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { MapPin, Calendar, Clock, DollarSign, Users } from "lucide-react";
+import { MapPin, Calendar, DollarSign, Users } from "lucide-react";
 
 export default function ClientJobsPage() {
 	const router = useRouter();
@@ -170,20 +170,12 @@ export default function ClientJobsPage() {
 										<div className="flex items-center gap-4 text-xs text-gray-400 dark:text-gray-500 flex-wrap">
 											<span className="flex items-center gap-1">
 												<MapPin className="w-3 h-3" />
-												{[job.location_city, job.location_country]
-													.filter(Boolean)
-													.join(", ") || "Remote"}
+												{job.location || "Remote"}
 											</span>
 											<span className="flex items-center gap-1">
 												<Calendar className="w-3 h-3" />
 												Posted {formatDate(job.created_at)}
 											</span>
-											{job.deadline && (
-												<span className="flex items-center gap-1">
-													<Clock className="w-3 h-3" />
-													Deadline {formatDate(job.deadline)}
-												</span>
-											)}
 											<span className="flex items-center gap-1">
 												<DollarSign className="w-3 h-3" />${job.budget}{" "}
 												{job.budget_type}

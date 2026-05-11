@@ -136,6 +136,14 @@ export default function JobApplicationsPage() {
 		});
 	};
 
+	const formatDelivery = (value: string | null) => {
+		if (!value) return "";
+		return value
+			.split("_")
+			.map((part) => part[0]?.toUpperCase() + part.slice(1))
+			.join(" ");
+	};
+
 	if (loading) {
 		return (
 			<div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
@@ -172,10 +180,7 @@ export default function JobApplicationsPage() {
 							{job?.budget_type}
 						</span>
 						<span className="inline-flex items-center gap-1">
-							<MapPin className="w-3.5 h-3.5" />{" "}
-							{[job?.location_city, job?.location_country]
-								.filter(Boolean)
-								.join(", ")}
+							<MapPin className="w-3.5 h-3.5" /> {job?.location || "Remote"}
 						</span>
 						<span className="inline-flex items-center gap-1">
 							<Users className="w-3.5 h-3.5" /> {applications.length}{" "}
@@ -252,10 +257,10 @@ export default function JobApplicationsPage() {
 												<Calendar className="w-3.5 h-3.5" /> Applied{" "}
 												{formatDate(app.created_at)}
 											</span>
-											{app.availability_date && (
+											{app.estimated_delivery && (
 												<span className="inline-flex items-center gap-1">
-													<CalendarDays className="w-3.5 h-3.5" /> Available
-													from {formatDate(app.availability_date)}
+													<CalendarDays className="w-3.5 h-3.5" /> Estimated
+													delivery {formatDelivery(app.estimated_delivery)}
 												</span>
 											)}
 										</div>

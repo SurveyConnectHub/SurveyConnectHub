@@ -11,7 +11,6 @@ import {
 	MapPin,
 	DollarSign,
 	Calendar,
-	Clock,
 	CheckCircle,
 	XCircle,
 	Clock3,
@@ -36,7 +35,7 @@ export default function ProfessionalApplicationsPage() {
 			const { data } = await supabase
 				.from("job_applications")
 				.select(
-					`*, jobs(title, description, budget, budget_type, location_city, location_country, status)`,
+					`*, jobs(title, description, budget, budget_type, location, job_type, status)`,
 				)
 				.eq("professional_id", user.id)
 				.order("created_at", { ascending: false });
@@ -85,6 +84,20 @@ export default function ProfessionalApplicationsPage() {
 						<Clock3 className="w-3 h-3" /> Pending
 					</span>
 				);
+		}
+	};
+
+	const getJobLocationLabel = (job: any) => {
+		if (job?.location) return job.location;
+		switch (job?.job_type) {
+			case "remote":
+				return "Remote";
+			case "on_site":
+				return "On-site";
+			case "hybrid":
+				return "Hybrid";
+			default:
+				return "";
 		}
 	};
 
@@ -181,9 +194,7 @@ export default function ProfessionalApplicationsPage() {
 										<div className="flex items-center gap-4 text-xs text-gray-400 dark:text-gray-500 flex-wrap">
 											<span className="flex items-center gap-1">
 												<MapPin className="w-3 h-3" />
-												{[app.jobs?.location_city, app.jobs?.location_country]
-													.filter(Boolean)
-													.join(", ") || "Remote"}
+												{getJobLocationLabel(app.jobs)}
 											</span>
 											<span className="flex items-center gap-1">
 												<DollarSign className="w-3 h-3" />${app.jobs?.budget}{" "}
@@ -193,12 +204,6 @@ export default function ProfessionalApplicationsPage() {
 												<Calendar className="w-3 h-3" />
 												Applied {formatDate(app.created_at)}
 											</span>
-											{app.availability_date && (
-												<span className="flex items-center gap-1">
-													<Clock className="w-3 h-3" />
-													Available from {formatDate(app.availability_date)}
-												</span>
-											)}
 										</div>
 
 										{app.status === "accepted" && (

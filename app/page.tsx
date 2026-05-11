@@ -131,7 +131,7 @@ export default function LandingPage() {
 									{
 										n: 1,
 										title: "Post Your Job",
-										desc: "Describe your project, set your budget and deadline",
+										desc: "Describe your project, set your budget and timeline",
 									},
 									{
 										n: 2,

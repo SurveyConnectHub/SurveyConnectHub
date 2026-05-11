@@ -9,10 +9,10 @@ type Job = {
 	id: string;
 	title: string;
 	description: string;
-	budget_min: number;
-	budget_max: number;
-	location: string;
+	budget: number;
+	budget_type: string;
 	job_type: string;
+	location: string | null;
 	status: string;
 	client_id: string;
 };
@@ -31,7 +31,15 @@ export default function ApplyPage() {
 
 	const [coverLetter, setCoverLetter] = useState("");
 	const [proposedRate, setProposedRate] = useState("");
-	const [availability, setAvailability] = useState("");
+	const [estimatedDelivery, setEstimatedDelivery] = useState("");
+	const [relevantExperience, setRelevantExperience] = useState("");
+	const [questionsForClient, setQuestionsForClient] = useState("");
+	const [portfolioItems, setPortfolioItems] = useState<any[]>([]);
+	const [portfolioMode, setPortfolioMode] = useState<"existing" | "upload">(
+		"existing",
+	);
+	const [selectedPortfolioItemId, setSelectedPortfolioItemId] = useState("");
+	const [portfolioFile, setPortfolioFile] = useState<File | null>(null);
 
 	useEffect(() => {
 		const init = async () => {
@@ -61,6 +69,19 @@ export default function ApplyPage() {
 			if (profile?.role !== "professional") {
 				router.push("/dashboard/client");
 				return;
+			}
+
+			const { data: portfolioData } = await supabase
+				.from("portfolio_items")
+				.select("id, title, file_url")
+				.eq("professional_id", user.id)
+				.order("created_at", { ascending: false });
+
+			if (portfolioData?.length) {
+				setPortfolioItems(portfolioData);
+				setSelectedPortfolioItemId(portfolioData[0].id);
+			} else {
+				setPortfolioMode("upload");
 			}
 
 			const { data: jobData, error: jobError } = await supabase
@@ -93,7 +114,12 @@ export default function ApplyPage() {
 	}, [id, router, supabase]);
 
 	const handleSubmit = async () => {
-		if (!coverLetter.trim() || !proposedRate || !availability) {
+		if (
+			!coverLetter.trim() ||
+			!proposedRate ||
+			!estimatedDelivery ||
+			!relevantExperience.trim()
+		) {
 			setError("Please fill in all fields.");
 			return;
 		}
@@ -115,6 +141,17 @@ export default function ApplyPage() {
 		}
 
 		try {
+			let portfolioAttachmentUrl: string | null = null;
+			if (portfolioMode === "upload" && portfolioFile) {
+				const cleanName = portfolioFile.name.replace(/[^a-zA-Z0-9._-]/g, "-");
+				const uploadPath = `${jobId}/portfolio-${Date.now()}-${cleanName}`;
+				const { error: uploadError } = await supabase.storage
+					.from("portfolio-attachments")
+					.upload(uploadPath, portfolioFile);
+				if (uploadError) throw uploadError;
+				portfolioAttachmentUrl = uploadPath;
+			}
+
 			const response = await fetch("/api/apply", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
@@ -122,7 +159,12 @@ export default function ApplyPage() {
 					jobId,
 					coverLetter,
 					proposedRate,
-					availabilityDate: availability,
+					estimatedDelivery,
+					relevantExperience,
+					questionsForClient,
+					portfolioItemId:
+						portfolioMode === "existing" ? selectedPortfolioItemId : null,
+					portfolioAttachmentUrl,
 				}),
 			});
 
@@ -151,6 +193,19 @@ export default function ApplyPage() {
 				maximumFractionDigits: 2,
 			})
 		: "0.00";
+
+	const jobTypeLabel = (type: string) => {
+		switch (type) {
+			case "remote":
+				return "Remote";
+			case "on_site":
+				return "On-site";
+			case "hybrid":
+				return "Hybrid";
+			default:
+				return type;
+		}
+	};
 
 	if (loading) {
 		return (
@@ -194,12 +249,12 @@ export default function ApplyPage() {
 									{job.title}
 								</h1>
 								<p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
-									{job.location} · {job.job_type}
+									{jobTypeLabel(job.job_type)}
+									{job.location ? ` · ${job.location}` : ""}
 								</p>
 							</div>
 							<span className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-medium px-3 py-1 rounded-full border border-emerald-500/20 whitespace-nowrap">
-								${job.budget_min?.toLocaleString()} – $
-								{job.budget_max?.toLocaleString()}
+								${job.budget.toLocaleString()} {job.budget_type}
 							</span>
 						</div>
 						<p className="text-gray-500 dark:text-gray-400 text-sm leading-relaxed line-clamp-3">
@@ -264,6 +319,10 @@ export default function ApplyPage() {
 								What are you expecting to be paid? ($){" "}
 								<span className="text-red-400">*</span>
 							</label>
+							<div className="rounded-xl border border-emerald-200 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-900/20 px-4 py-3 text-xs text-emerald-700 dark:text-emerald-300">
+								Client budget: ${job?.budget.toLocaleString()}{" "}
+								{job?.budget_type}
+							</div>
 							<div className="relative">
 								<span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm">
 									$
@@ -290,22 +349,109 @@ export default function ApplyPage() {
 							</p>
 						</div>
 
-						{/* Availability */}
+						{/* Estimated Delivery */}
 						<div className="space-y-2">
 							<label
-								htmlFor="availability-date"
+								htmlFor="estimated-delivery"
 								className="text-sm text-gray-700 dark:text-gray-300 font-medium"
 							>
-								Available to Start <span className="text-red-400">*</span>
+								Estimated Delivery <span className="text-red-400">*</span>
 							</label>
-							<input
-								id="availability-date"
-								aria-label="Available to Start"
-								type="date"
-								value={availability}
-								onChange={(e) => setAvailability(e.target.value)}
+							<select
+								id="estimated-delivery"
+								value={estimatedDelivery}
+								onChange={(e) => setEstimatedDelivery(e.target.value)}
 								className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white dark:placeholder-gray-400 text-sm focus:outline-none focus:border-emerald-500 transition-colors"
+							>
+								<option value="">Select delivery timeframe</option>
+								<option value="1_day">1 Day</option>
+								<option value="3_days">3 Days</option>
+								<option value="1_week">1 Week</option>
+								<option value="2_weeks">2 Weeks</option>
+								<option value="1_month">1 Month</option>
+								<option value="3_months">3 Months</option>
+							</select>
+						</div>
+
+						<div className="space-y-2">
+							<label className="text-sm text-gray-700 dark:text-gray-300 font-medium">
+								Relevant Experience <span className="text-red-400">*</span>
+							</label>
+							<textarea
+								rows={4}
+								placeholder="Describe your relevant experience for this specific job."
+								value={relevantExperience}
+								onChange={(e) => setRelevantExperience(e.target.value)}
+								className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 dark:placeholder-gray-400 text-sm focus:outline-none focus:border-emerald-500 transition-colors resize-none"
 							/>
+						</div>
+
+						<div className="space-y-2">
+							<label className="text-sm text-gray-700 dark:text-gray-300 font-medium">
+								Questions for Client
+							</label>
+							<textarea
+								rows={3}
+								placeholder="List any questions you need answered before starting."
+								value={questionsForClient}
+								onChange={(e) => setQuestionsForClient(e.target.value)}
+								className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 dark:placeholder-gray-400 text-sm focus:outline-none focus:border-emerald-500 transition-colors resize-none"
+							/>
+						</div>
+
+						<div className="space-y-3">
+							<label className="text-sm text-gray-700 dark:text-gray-300 font-medium">
+								Portfolio Attachment
+							</label>
+							<div className="flex flex-wrap gap-3 text-sm">
+								{portfolioItems.length > 0 && (
+									<label className="flex items-center gap-2">
+										<input
+											type="radio"
+											checked={portfolioMode === "existing"}
+											onChange={() => setPortfolioMode("existing")}
+											className="text-emerald-600 dark:text-white"
+										/>
+										Use existing
+									</label>
+								)}
+								<label className="flex items-center gap-2">
+									<input
+										type="radio"
+										checked={portfolioMode === "upload"}
+										onChange={() => setPortfolioMode("upload")}
+										className="text-emerald-600 dark:text-white"
+									/>
+									Upload new
+								</label>
+							</div>
+
+							{portfolioMode === "existing" && portfolioItems.length > 0 && (
+								<select
+									value={selectedPortfolioItemId}
+									onChange={(e) => setSelectedPortfolioItemId(e.target.value)}
+									className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white dark:placeholder-gray-400 text-sm focus:outline-none focus:border-emerald-500 transition-colors"
+								>
+									{portfolioItems.map((item) => (
+										<option
+											key={item.id}
+											value={item.id}
+										>
+											{item.title || item.file_url}
+										</option>
+									))}
+								</select>
+							)}
+
+							{portfolioMode === "upload" && (
+								<input
+									type="file"
+									onChange={(e) =>
+										setPortfolioFile(e.target.files?.[0] || null)
+									}
+									className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white text-sm focus:outline-none focus:border-emerald-500 transition-colors"
+								/>
+							)}
 						</div>
 
 						{/* Error */}

@@ -7,7 +7,6 @@ import { createClient } from "@/lib/supabase/client";
 import {
 	MapPin,
 	Calendar,
-	Clock,
 	DollarSign,
 	User,
 	Search,
@@ -64,7 +63,7 @@ function JobsPageContent() {
 		}
 
 		if (filterRemote) {
-			query = query.eq("is_remote", true);
+			query = query.eq("job_type", "remote");
 		}
 
 		const { data, count, error } = await query
@@ -124,6 +123,19 @@ function JobsPageContent() {
 			month: "short",
 			year: "numeric",
 		});
+
+	const getJobTypeLabel = (type?: string | null) => {
+		switch (type) {
+			case "remote":
+				return "Remote";
+			case "on_site":
+				return "On-site";
+			case "hybrid":
+				return "Hybrid";
+			default:
+				return type || "";
+		}
+	};
 
 	const getProfessionLabel = (type: string) => {
 		const labels: any = {
@@ -289,9 +301,9 @@ function JobsPageContent() {
 											<h3 className="text-lg font-semibold text-gray-900 dark:text-white">
 												{job.title}
 											</h3>
-											{job.is_remote && (
+											{job.job_type && (
 												<span className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs font-medium px-2 py-1 rounded-full">
-													Remote
+													{getJobTypeLabel(job.job_type)}
 												</span>
 											)}
 											{job.required_verification && (
@@ -310,24 +322,14 @@ function JobsPageContent() {
 										</p>
 
 										<div className="flex items-center gap-4 text-xs text-gray-400 dark:text-gray-500 flex-wrap">
-											{(job.location_city || job.location_country) && (
-												<span className="flex items-center gap-1">
-													<MapPin className="w-3 h-3" />
-													{[job.location_city, job.location_country]
-														.filter(Boolean)
-														.join(", ")}
-												</span>
-											)}
+											<span className="flex items-center gap-1">
+												<MapPin className="w-3 h-3" />
+												{job.location || "Remote"}
+											</span>
 											<span className="flex items-center gap-1">
 												<Calendar className="w-3 h-3" />
 												Posted {formatDate(job.created_at)}
 											</span>
-											{job.deadline && (
-												<span className="flex items-center gap-1">
-													<Clock className="w-3 h-3" />
-													Deadline {formatDate(job.deadline)}
-												</span>
-											)}
 											<span className="flex items-center gap-1">
 												<User className="w-3 h-3" />
 												{job.profiles?.full_name}
