@@ -6,485 +6,485 @@ import { createClient } from "@/lib/supabase/client";
 import { PartyPopper } from "lucide-react";
 
 type Job = {
-	id: string;
-	title: string;
-	description: string;
-	budget: number;
-	budget_type: string;
-	job_type: string;
-	location: string | null;
-	status: string;
-	client_id: string;
+  id: string;
+  title: string;
+  description: string;
+  budget: number;
+  budget_type: string;
+  job_type: string;
+  location: string | null;
+  status: string;
+  client_id: string;
 };
 
 export default function ApplyPage() {
-	const { id } = useParams();
-	const router = useRouter();
-	const supabase = useMemo(() => createClient(), []);
+  const { id } = useParams();
+  const router = useRouter();
+  const supabase = useMemo(() => createClient(), []);
 
-	const [job, setJob] = useState<Job | null>(null);
-	const [loading, setLoading] = useState(true);
-	const [submitting, setSubmitting] = useState(false);
-	const [error, setError] = useState("");
-	const [success, setSuccess] = useState(false);
-	const [alreadyApplied, setAlreadyApplied] = useState(false);
+  const [job, setJob] = useState<Job | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
+  const [alreadyApplied, setAlreadyApplied] = useState(false);
 
-	const [coverLetter, setCoverLetter] = useState("");
-	const [proposedRate, setProposedRate] = useState("");
-	const [estimatedDelivery, setEstimatedDelivery] = useState("");
-	const [relevantExperience, setRelevantExperience] = useState("");
-	const [questionsForClient, setQuestionsForClient] = useState("");
-	const [portfolioItems, setPortfolioItems] = useState<any[]>([]);
-	const [portfolioMode, setPortfolioMode] = useState<"existing" | "upload">(
-		"existing",
-	);
-	const [selectedPortfolioItemId, setSelectedPortfolioItemId] = useState("");
-	const [portfolioFile, setPortfolioFile] = useState<File | null>(null);
+  const [coverLetter, setCoverLetter] = useState("");
+  const [proposedRate, setProposedRate] = useState("");
+  const [estimatedDelivery, setEstimatedDelivery] = useState("");
+  const [relevantExperience, setRelevantExperience] = useState("");
+  const [questionsForClient, setQuestionsForClient] = useState("");
+  const [portfolioItems, setPortfolioItems] = useState<any[]>([]);
+  const [portfolioMode, setPortfolioMode] = useState<"existing" | "upload">(
+    "existing",
+  );
+  const [selectedPortfolioItemId, setSelectedPortfolioItemId] = useState("");
+  const [portfolioFile, setPortfolioFile] = useState<File | null>(null);
 
-	useEffect(() => {
-		const init = async () => {
-			const jobId =
-				typeof id === "string" ? id : Array.isArray(id) ? id[0] : undefined;
-			if (!jobId) {
-				setError("Job not found.");
-				setLoading(false);
-				return;
-			}
+  useEffect(() => {
+    const init = async () => {
+      const jobId =
+        typeof id === "string" ? id : Array.isArray(id) ? id[0] : undefined;
+      if (!jobId) {
+        setError("Job not found.");
+        setLoading(false);
+        return;
+      }
 
-			const {
-				data: { user },
-			} = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-			if (!user) {
-				router.push("/login");
-				return;
-			}
+      if (!user) {
+        router.push("/login");
+        return;
+      }
 
-			const { data: profile } = await supabase
-				.from("profiles")
-				.select("role")
-				.eq("id", user.id)
-				.single();
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single();
 
-			if (profile?.role !== "professional") {
-				router.push("/dashboard/client");
-				return;
-			}
+      if (profile?.role !== "professional") {
+        router.push("/dashboard/client");
+        return;
+      }
 
-			const { data: portfolioData } = await supabase
-				.from("portfolio_items")
-				.select("id, title, file_url")
-				.eq("professional_id", user.id)
-				.order("created_at", { ascending: false });
+      const { data: portfolioData } = await supabase
+        .from("portfolio_items")
+        .select("id, title, file_url")
+        .eq("professional_id", user.id)
+        .order("created_at", { ascending: false });
 
-			if (portfolioData?.length) {
-				setPortfolioItems(portfolioData);
-				setSelectedPortfolioItemId(portfolioData[0].id);
-			} else {
-				setPortfolioMode("upload");
-			}
+      if (portfolioData?.length) {
+        setPortfolioItems(portfolioData);
+        setSelectedPortfolioItemId(portfolioData[0].id);
+      } else {
+        setPortfolioMode("upload");
+      }
 
-			const { data: jobData, error: jobError } = await supabase
-				.from("jobs")
-				.select("*")
-				.eq("id", jobId)
-				.single();
+      const { data: jobData, error: jobError } = await supabase
+        .from("jobs")
+        .select("*")
+        .eq("id", jobId)
+        .single();
 
-			if (jobError || !jobData) {
-				setError("Job not found.");
-				setLoading(false);
-				return;
-			}
+      if (jobError || !jobData) {
+        setError("Job not found.");
+        setLoading(false);
+        return;
+      }
 
-			setJob(jobData);
+      setJob(jobData);
 
-			const { data: existing } = await supabase
-				.from("job_applications")
-				.select("id")
-				.eq("job_id", jobId)
-				.eq("professional_id", user.id)
-				.single();
+      const { data: existing } = await supabase
+        .from("job_applications")
+        .select("id")
+        .eq("job_id", jobId)
+        .eq("professional_id", user.id)
+        .single();
 
-			if (existing) setAlreadyApplied(true);
+      if (existing) setAlreadyApplied(true);
 
-			setLoading(false);
-		};
+      setLoading(false);
+    };
 
-		init();
-	}, [id, router, supabase]);
+    init();
+  }, [id, router, supabase]);
 
-	const handleSubmit = async () => {
-		if (
-			!coverLetter.trim() ||
-			!proposedRate ||
-			!estimatedDelivery ||
-			!relevantExperience.trim()
-		) {
-			setError("Please fill in all fields.");
-			return;
-		}
+  const handleSubmit = async () => {
+    if (
+      !coverLetter.trim() ||
+      !proposedRate ||
+      !estimatedDelivery ||
+      !relevantExperience.trim()
+    ) {
+      setError("Please fill in all fields.");
+      return;
+    }
 
-		if (parseFloat(proposedRate) <= 0) {
-			setError("Please enter a valid rate.");
-			return;
-		}
+    if (parseFloat(proposedRate) <= 0) {
+      setError("Please enter a valid rate.");
+      return;
+    }
 
-		setSubmitting(true);
-		setError("");
+    setSubmitting(true);
+    setError("");
 
-		const jobId =
-			typeof id === "string" ? id : Array.isArray(id) ? id[0] : undefined;
-		if (!jobId) {
-			setError("Job not found.");
-			setSubmitting(false);
-			return;
-		}
+    const jobId =
+      typeof id === "string" ? id : Array.isArray(id) ? id[0] : undefined;
+    if (!jobId) {
+      setError("Job not found.");
+      setSubmitting(false);
+      return;
+    }
 
-		try {
-			let portfolioAttachmentUrl: string | null = null;
-			if (portfolioMode === "upload" && portfolioFile) {
-				const cleanName = portfolioFile.name.replace(/[^a-zA-Z0-9._-]/g, "-");
-				const uploadPath = `${jobId}/portfolio-${Date.now()}-${cleanName}`;
-				const { error: uploadError } = await supabase.storage
-					.from("portfolio-attachments")
-					.upload(uploadPath, portfolioFile);
-				if (uploadError) throw uploadError;
-				portfolioAttachmentUrl = uploadPath;
-			}
+    try {
+      let portfolioAttachmentUrl: string | null = null;
+      if (portfolioMode === "upload" && portfolioFile) {
+        const cleanName = portfolioFile.name.replace(/[^a-zA-Z0-9._-]/g, "-");
+        const {
+          data: { user: uploadUser },
+        } = await supabase.auth.getUser();
+        const uploadPath = `${uploadUser!.id}/portfolio-${Date.now()}-${cleanName}`;
+        const { error: uploadError } = await supabase.storage
+          .from("portfolio-attachments")
+          .upload(uploadPath, portfolioFile);
+        if (uploadError) throw uploadError;
+        portfolioAttachmentUrl = uploadPath;
+      }
 
-			const response = await fetch("/api/apply", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({
-					jobId,
-					coverLetter,
-					proposedRate,
-					estimatedDelivery,
-					relevantExperience,
-					questionsForClient,
-					portfolioItemId:
-						portfolioMode === "existing" ? selectedPortfolioItemId : null,
-					portfolioAttachmentUrl,
-				}),
-			});
+      const response = await fetch("/api/apply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jobId,
+          coverLetter,
+          proposedRate,
+          estimatedDelivery,
+          relevantExperience,
+          questionsForClient,
+          portfolioItemId:
+            portfolioMode === "existing" ? selectedPortfolioItemId : null,
+          portfolioAttachmentUrl,
+        }),
+      });
 
-			const result = await response.json().catch(() => ({}));
-			if (!response.ok) {
-				setError(result?.error || "Failed to submit application.");
-				if (response.status === 409) {
-					setAlreadyApplied(true);
-				}
-				return;
-			}
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setError(result?.error || "Failed to submit application.");
+        if (response.status === 409) {
+          setAlreadyApplied(true);
+        }
+        return;
+      }
 
-			setSuccess(true);
-			setTimeout(() => router.push("/jobs"), 2000);
-		} catch (error) {
-			console.error("Application submit failed:", error);
-			setError("Network error. Please try again.");
-		} finally {
-			setSubmitting(false);
-		}
-	};
+      setSuccess(true);
+      setTimeout(() => router.push("/jobs"), 2000);
+    } catch (error) {
+      console.error("Application submit failed:", error);
+      setError("Network error. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
-	const professionalReceives = proposedRate
-		? (parseFloat(proposedRate) * 0.95).toLocaleString(undefined, {
-				minimumFractionDigits: 2,
-				maximumFractionDigits: 2,
-			})
-		: "0.00";
+  const professionalReceives = proposedRate
+    ? (parseFloat(proposedRate) * 0.95).toLocaleString(undefined, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })
+    : "0.00";
 
-	const jobTypeLabel = (type: string) => {
-		switch (type) {
-			case "remote":
-				return "Remote";
-			case "on_site":
-				return "On-site";
-			case "hybrid":
-				return "Hybrid";
-			default:
-				return type;
-		}
-	};
+  const jobTypeLabel = (type: string) => {
+    switch (type) {
+      case "remote":
+        return "Remote";
+      case "on_site":
+        return "On-site";
+      case "hybrid":
+        return "Hybrid";
+      default:
+        return type;
+    }
+  };
 
-	if (loading) {
-		return (
-			<div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center transition-colors duration-300">
-				<div className="w-8 h-8 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
-			</div>
-		);
-	}
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center transition-colors duration-300">
+        <div className="w-8 h-8 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
-	if (error && !job) {
-		return (
-			<div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center text-red-500 dark:text-red-400 transition-colors duration-300">
-				{error}
-			</div>
-		);
-	}
+  if (error && !job) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center text-red-500 dark:text-red-400 transition-colors duration-300">
+        {error}
+      </div>
+    );
+  }
 
-	return (
-		<div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white transition-colors duration-300">
-			{/* Header */}
-			<div className="border-b border-gray-200 dark:border-gray-800 px-6 py-4 flex items-center gap-4">
-				<button
-					onClick={() => router.back()}
-					className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors text-sm flex items-center gap-2"
-				>
-					← Back
-				</button>
-				<span className="text-gray-300 dark:text-gray-600">|</span>
-				<span className="text-gray-500 dark:text-gray-400 text-sm">
-					Apply for Job
-				</span>
-			</div>
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white transition-colors duration-300">
+      {/* Header */}
+      <div className="border-b border-gray-200 dark:border-gray-800 px-6 py-4 flex items-center gap-4">
+        <button
+          onClick={() => router.back()}
+          className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors text-sm flex items-center gap-2"
+        >
+          ← Back
+        </button>
+        <span className="text-gray-300 dark:text-gray-600">|</span>
+        <span className="text-gray-500 dark:text-gray-400 text-sm">
+          Apply for Job
+        </span>
+      </div>
 
-			<div className="max-w-3xl mx-auto px-6 py-10 space-y-8">
-				{/* Job Summary */}
-				{job && (
-					<div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 space-y-3">
-						<div className="flex items-start justify-between gap-4">
-							<div>
-								<h1 className="text-xl font-semibold text-gray-900 dark:text-white">
-									{job.title}
-								</h1>
-								<p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
-									{jobTypeLabel(job.job_type)}
-									{job.location ? ` · ${job.location}` : ""}
-								</p>
-							</div>
-							<span className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-medium px-3 py-1 rounded-full border border-emerald-500/20 whitespace-nowrap">
-								${job.budget.toLocaleString()} {job.budget_type}
-							</span>
-						</div>
-						<p className="text-gray-500 dark:text-gray-400 text-sm leading-relaxed line-clamp-3">
-							{job.description}
-						</p>
-					</div>
-				)}
+      <div className="max-w-3xl mx-auto px-6 py-10 space-y-8">
+        {/* Job Summary */}
+        {job && (
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 space-y-3">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
+                  {job.title}
+                </h1>
+                <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
+                  {jobTypeLabel(job.job_type)}
+                  {job.location ? ` · ${job.location}` : ""}
+                </p>
+              </div>
+              <span className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-medium px-3 py-1 rounded-full border border-emerald-500/20 whitespace-nowrap">
+                ${job.budget.toLocaleString()} {job.budget_type}
+              </span>
+            </div>
+            <p className="text-gray-500 dark:text-gray-400 text-sm leading-relaxed line-clamp-3">
+              {job.description}
+            </p>
+          </div>
+        )}
 
-				{/* Already Applied */}
-				{alreadyApplied ? (
-					<div className="bg-yellow-500/10 border border-yellow-500/20 rounded-2xl p-6 text-center space-y-2">
-						<p className="text-yellow-600 dark:text-yellow-400 font-medium">
-							You&apos;ve already applied to this job.
-						</p>
-						<p className="text-gray-500 dark:text-gray-400 text-sm">
-							Check your dashboard for application status.
-						</p>
-						<button
-							onClick={() => router.push("/dashboard/professional")}
-							className="mt-2 text-sm text-emerald-600 dark:text-emerald-400 hover:underline"
-						>
-							Go to Dashboard →
-						</button>
-					</div>
-				) : success ? (
-					<div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-6 text-center space-y-2">
-						<p className="text-emerald-600 dark:text-emerald-400 font-semibold text-lg inline-flex items-center gap-2">
-							<PartyPopper className="w-5 h-5" />
-							Application Submitted!
-						</p>
-						<p className="text-gray-500 dark:text-gray-400 text-sm">
-							Redirecting you back to jobs...
-						</p>
-					</div>
-				) : (
-					<div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 space-y-6">
-						<h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-							Your Proposal
-						</h2>
+        {/* Already Applied */}
+        {alreadyApplied ? (
+          <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-2xl p-6 text-center space-y-2">
+            <p className="text-yellow-600 dark:text-yellow-400 font-medium">
+              You&apos;ve already applied to this job.
+            </p>
+            <p className="text-gray-500 dark:text-gray-400 text-sm">
+              Check your dashboard for application status.
+            </p>
+            <button
+              onClick={() => router.push("/dashboard/professional")}
+              className="mt-2 text-sm text-emerald-600 dark:text-emerald-400 hover:underline"
+            >
+              Go to Dashboard →
+            </button>
+          </div>
+        ) : success ? (
+          <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-6 text-center space-y-2">
+            <p className="text-emerald-600 dark:text-emerald-400 font-semibold text-lg inline-flex items-center gap-2">
+              <PartyPopper className="w-5 h-5" />
+              Application Submitted!
+            </p>
+            <p className="text-gray-500 dark:text-gray-400 text-sm">
+              Redirecting you back to jobs...
+            </p>
+          </div>
+        ) : (
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 space-y-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+              Your Proposal
+            </h2>
 
-						{/* Cover Letter */}
-						<div className="space-y-2">
-							<label className="text-sm text-gray-700 dark:text-gray-300 font-medium">
-								Cover Letter <span className="text-red-400">*</span>
-							</label>
-							<textarea
-								rows={6}
-								placeholder="Introduce yourself. Why are you the best fit for this job? What's your relevant experience?"
-								value={coverLetter}
-								onChange={(e) => setCoverLetter(e.target.value)}
-								maxLength={1000}
-								className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 dark:placeholder-gray-400 text-sm focus:outline-none focus:border-emerald-500 transition-colors resize-none"
-							/>
-							<p className="text-xs text-gray-400 dark:text-gray-500">
-								{coverLetter.length} / 1000 characters
-							</p>
-						</div>
+            {/* Cover Letter */}
+            <div className="space-y-2">
+              <label className="text-sm text-gray-700 dark:text-gray-300 font-medium">
+                Cover Letter <span className="text-red-400">*</span>
+              </label>
+              <textarea
+                rows={6}
+                placeholder="Introduce yourself. Why are you the best fit for this job? What's your relevant experience?"
+                value={coverLetter}
+                onChange={(e) => setCoverLetter(e.target.value)}
+                maxLength={1000}
+                className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 dark:placeholder-gray-400 text-sm focus:outline-none focus:border-emerald-500 transition-colors resize-none"
+              />
+              <p className="text-xs text-gray-400 dark:text-gray-500">
+                {coverLetter.length} / 1000 characters
+              </p>
+            </div>
 
-						{/* Proposed Rate */}
-						<div className="space-y-2">
-							<label className="text-sm text-gray-700 dark:text-gray-300 font-medium">
-								What are you expecting to be paid? ($){" "}
-								<span className="text-red-400">*</span>
-							</label>
-							<div className="rounded-xl border border-emerald-200 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-900/20 px-4 py-3 text-xs text-emerald-700 dark:text-emerald-300">
-								Client budget: ${job?.budget.toLocaleString()}{" "}
-								{job?.budget_type}
-							</div>
-							<div className="relative">
-								<span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm">
-									$
-								</span>
-								<input
-									type="number"
-									placeholder="0.00"
-									value={proposedRate}
-									min="1"
-									onChange={(e) => setProposedRate(e.target.value)}
-									onKeyDown={(e) => {
-										if (["e", "E", "+", "-"].includes(e.key)) {
-											e.preventDefault();
-										}
-									}}
-									className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl pl-8 pr-4 py-3 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 dark:placeholder-gray-400 text-sm focus:outline-none focus:border-emerald-500 transition-colors"
-								/>
-							</div>
-							<p className="text-xs text-gray-400 dark:text-gray-500">
-								SurveyConnectHub takes 5% commission. You&apos;ll receive{" "}
-								<span className="text-emerald-600 dark:text-emerald-400 font-medium">
-									${professionalReceives}
-								</span>
-							</p>
-						</div>
+            {/* Proposed Rate */}
+            <div className="space-y-2">
+              <label className="text-sm text-gray-700 dark:text-gray-300 font-medium">
+                What are you expecting to be paid? ($){" "}
+                <span className="text-red-400">*</span>
+              </label>
+              <div className="rounded-xl border border-emerald-200 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-900/20 px-4 py-3 text-xs text-emerald-700 dark:text-emerald-300">
+                Client budget: ${job?.budget.toLocaleString()}{" "}
+                {job?.budget_type}
+              </div>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm">
+                  $
+                </span>
+                <input
+                  type="number"
+                  placeholder="0.00"
+                  value={proposedRate}
+                  min="1"
+                  onChange={(e) => setProposedRate(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (["e", "E", "+", "-"].includes(e.key)) {
+                      e.preventDefault();
+                    }
+                  }}
+                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl pl-8 pr-4 py-3 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 dark:placeholder-gray-400 text-sm focus:outline-none focus:border-emerald-500 transition-colors"
+                />
+              </div>
+              <p className="text-xs text-gray-400 dark:text-gray-500">
+                SurveyConnectHub takes 5% commission. You&apos;ll receive{" "}
+                <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                  ${professionalReceives}
+                </span>
+              </p>
+            </div>
 
-						{/* Estimated Delivery */}
-						<div className="space-y-2">
-							<label
-								htmlFor="estimated-delivery"
-								className="text-sm text-gray-700 dark:text-gray-300 font-medium"
-							>
-								Estimated Delivery <span className="text-red-400">*</span>
-							</label>
-							<select
-								id="estimated-delivery"
-								value={estimatedDelivery}
-								onChange={(e) => setEstimatedDelivery(e.target.value)}
-								className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white dark:placeholder-gray-400 text-sm focus:outline-none focus:border-emerald-500 transition-colors"
-							>
-								<option value="">Select delivery timeframe</option>
-								<option value="1_day">1 Day</option>
-								<option value="3_days">3 Days</option>
-								<option value="1_week">1 Week</option>
-								<option value="2_weeks">2 Weeks</option>
-								<option value="1_month">1 Month</option>
-								<option value="3_months">3 Months</option>
-							</select>
-						</div>
+            {/* Estimated Delivery */}
+            <div className="space-y-2">
+              <label
+                htmlFor="estimated-delivery"
+                className="text-sm text-gray-700 dark:text-gray-300 font-medium"
+              >
+                Estimated Delivery <span className="text-red-400">*</span>
+              </label>
+              <select
+                id="estimated-delivery"
+                value={estimatedDelivery}
+                onChange={(e) => setEstimatedDelivery(e.target.value)}
+                className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white dark:placeholder-gray-400 text-sm focus:outline-none focus:border-emerald-500 transition-colors"
+              >
+                <option value="">Select delivery timeframe</option>
+                <option value="1_day">1 Day</option>
+                <option value="3_days">3 Days</option>
+                <option value="1_week">1 Week</option>
+                <option value="2_weeks">2 Weeks</option>
+                <option value="1_month">1 Month</option>
+                <option value="3_months">3 Months</option>
+              </select>
+            </div>
 
-						<div className="space-y-2">
-							<label className="text-sm text-gray-700 dark:text-gray-300 font-medium">
-								Relevant Experience <span className="text-red-400">*</span>
-							</label>
-							<textarea
-								rows={4}
-								placeholder="Describe your relevant experience for this specific job."
-								value={relevantExperience}
-								onChange={(e) => setRelevantExperience(e.target.value)}
-								className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 dark:placeholder-gray-400 text-sm focus:outline-none focus:border-emerald-500 transition-colors resize-none"
-							/>
-						</div>
+            <div className="space-y-2">
+              <label className="text-sm text-gray-700 dark:text-gray-300 font-medium">
+                Relevant Experience <span className="text-red-400">*</span>
+              </label>
+              <textarea
+                rows={4}
+                placeholder="Describe your relevant experience for this specific job."
+                value={relevantExperience}
+                onChange={(e) => setRelevantExperience(e.target.value)}
+                className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 dark:placeholder-gray-400 text-sm focus:outline-none focus:border-emerald-500 transition-colors resize-none"
+              />
+            </div>
 
-						<div className="space-y-2">
-							<label className="text-sm text-gray-700 dark:text-gray-300 font-medium">
-								Questions for Client
-							</label>
-							<textarea
-								rows={3}
-								placeholder="List any questions you need answered before starting."
-								value={questionsForClient}
-								onChange={(e) => setQuestionsForClient(e.target.value)}
-								className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 dark:placeholder-gray-400 text-sm focus:outline-none focus:border-emerald-500 transition-colors resize-none"
-							/>
-						</div>
+            <div className="space-y-2">
+              <label className="text-sm text-gray-700 dark:text-gray-300 font-medium">
+                Questions for Client
+              </label>
+              <textarea
+                rows={3}
+                placeholder="List any questions you need answered before starting."
+                value={questionsForClient}
+                onChange={(e) => setQuestionsForClient(e.target.value)}
+                className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 dark:placeholder-gray-400 text-sm focus:outline-none focus:border-emerald-500 transition-colors resize-none"
+              />
+            </div>
 
-						<div className="space-y-3">
-							<label className="text-sm text-gray-700 dark:text-gray-300 font-medium">
-								Portfolio Attachment
-							</label>
-							<div className="flex flex-wrap gap-3 text-sm">
-								{portfolioItems.length > 0 && (
-									<label className="flex items-center gap-2">
-										<input
-											type="radio"
-											checked={portfolioMode === "existing"}
-											onChange={() => setPortfolioMode("existing")}
-											className="text-emerald-600 dark:text-white"
-										/>
-										Use existing
-									</label>
-								)}
-								<label className="flex items-center gap-2">
-									<input
-										type="radio"
-										checked={portfolioMode === "upload"}
-										onChange={() => setPortfolioMode("upload")}
-										className="text-emerald-600 dark:text-white"
-									/>
-									Upload new
-								</label>
-							</div>
+            <div className="space-y-3">
+              <label className="text-sm text-gray-700 dark:text-gray-300 font-medium">
+                Portfolio Attachment
+              </label>
+              <div className="flex flex-wrap gap-3 text-sm">
+                {portfolioItems.length > 0 && (
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      checked={portfolioMode === "existing"}
+                      onChange={() => setPortfolioMode("existing")}
+                      className="text-emerald-600 dark:text-white"
+                    />
+                    Use existing
+                  </label>
+                )}
+                <label className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    checked={portfolioMode === "upload"}
+                    onChange={() => setPortfolioMode("upload")}
+                    className="text-emerald-600 dark:text-white"
+                  />
+                  Upload new
+                </label>
+              </div>
 
-							{portfolioMode === "existing" && portfolioItems.length > 0 && (
-								<select
-									value={selectedPortfolioItemId}
-									onChange={(e) => setSelectedPortfolioItemId(e.target.value)}
-									className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white dark:placeholder-gray-400 text-sm focus:outline-none focus:border-emerald-500 transition-colors"
-								>
-									{portfolioItems.map((item) => (
-										<option
-											key={item.id}
-											value={item.id}
-										>
-											{item.title || item.file_url}
-										</option>
-									))}
-								</select>
-							)}
+              {portfolioMode === "existing" && portfolioItems.length > 0 && (
+                <select
+                  value={selectedPortfolioItemId}
+                  onChange={(e) => setSelectedPortfolioItemId(e.target.value)}
+                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white dark:placeholder-gray-400 text-sm focus:outline-none focus:border-emerald-500 transition-colors"
+                >
+                  {portfolioItems.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.title || item.file_url}
+                    </option>
+                  ))}
+                </select>
+              )}
 
-							{portfolioMode === "upload" && (
-								<input
-									type="file"
-									onChange={(e) =>
-										setPortfolioFile(e.target.files?.[0] || null)
-									}
-									className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white text-sm focus:outline-none focus:border-emerald-500 transition-colors"
-								/>
-							)}
-						</div>
+              {portfolioMode === "upload" && (
+                <input
+                  type="file"
+                  onChange={(e) =>
+                    setPortfolioFile(e.target.files?.[0] || null)
+                  }
+                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white text-sm focus:outline-none focus:border-emerald-500 transition-colors"
+                />
+              )}
+            </div>
 
-						{/* Error */}
-						{error && (
-							<div className="bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 text-red-500 dark:text-red-400 text-sm">
-								{error}
-							</div>
-						)}
+            {/* Error */}
+            {error && (
+              <div className="bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 text-red-500 dark:text-red-400 text-sm">
+                {error}
+              </div>
+            )}
 
-						{/* Submit */}
-						<button
-							onClick={handleSubmit}
-							disabled={submitting}
-							className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:bg-emerald-500/40 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
-						>
-							{submitting ? (
-								<>
-									<div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-									Submitting...
-								</>
-							) : (
-								"Submit Application"
-							)}
-						</button>
+            {/* Submit */}
+            <button
+              onClick={handleSubmit}
+              disabled={submitting}
+              className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:bg-emerald-500/40 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
+            >
+              {submitting ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Submitting...
+                </>
+              ) : (
+                "Submit Application"
+              )}
+            </button>
 
-						<p className="text-xs text-gray-400 dark:text-gray-500 text-center">
-							By applying, you agree to SurveyConnectHub&apos;s terms. The
-							client will review your proposal and may reach out via the
-							platform.
-						</p>
-					</div>
-				)}
-			</div>
-		</div>
-	);
+            <p className="text-xs text-gray-400 dark:text-gray-500 text-center">
+              By applying, you agree to SurveyConnectHub&apos;s terms. The
+              client will review your proposal and may reach out via the
+              platform.
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
