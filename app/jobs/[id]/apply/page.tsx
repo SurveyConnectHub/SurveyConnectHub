@@ -40,6 +40,9 @@ export default function ApplyPage() {
   );
   const [selectedPortfolioItemId, setSelectedPortfolioItemId] = useState("");
   const [portfolioFile, setPortfolioFile] = useState<File | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<
+    "idle" | "uploading" | "done" | "error"
+  >("idle");
 
   useEffect(() => {
     const init = async () => {
@@ -143,15 +146,42 @@ export default function ApplyPage() {
     try {
       let portfolioAttachmentUrl: string | null = null;
       if (portfolioMode === "upload" && portfolioFile) {
-        const cleanName = portfolioFile.name.replace(/[^a-zA-Z0-9._-]/g, "-");
+        const allowed = [
+          "application/pdf",
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ];
+        const ext = portfolioFile.name.split(".").pop()?.toLowerCase();
+        if (
+          !allowed.includes(portfolioFile.type) ||
+          !["pdf", "docx"].includes(ext || "")
+        ) {
+          setError("Only PDF and DOCX files are allowed.");
+          setSubmitting(false);
+          return;
+        }
+
+        setUploadProgress("uploading");
         const {
           data: { user: uploadUser },
         } = await supabase.auth.getUser();
+        const cleanName = portfolioFile.name.replace(/[^a-zA-Z0-9._-]/g, "-");
         const uploadPath = `${uploadUser!.id}/portfolio-${Date.now()}-${cleanName}`;
+
         const { error: uploadError } = await supabase.storage
           .from("portfolio-attachments")
-          .upload(uploadPath, portfolioFile);
-        if (uploadError) throw uploadError;
+          .upload(uploadPath, portfolioFile, {
+            contentType: portfolioFile.type,
+            upsert: false,
+          });
+
+        if (uploadError) {
+          setUploadProgress("error");
+          setError(`File upload failed: ${uploadError.message}`);
+          setSubmitting(false);
+          return;
+        }
+
+        setUploadProgress("done");
         portfolioAttachmentUrl = uploadPath;
       }
 
@@ -181,6 +211,7 @@ export default function ApplyPage() {
       }
 
       setSuccess(true);
+      setUploadProgress("idle");
       setTimeout(() => router.push("/jobs"), 2000);
     } catch (error) {
       console.error("Application submit failed:", error);
@@ -309,7 +340,7 @@ export default function ApplyPage() {
                 value={coverLetter}
                 onChange={(e) => setCoverLetter(e.target.value)}
                 maxLength={1000}
-                className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 dark:placeholder-gray-400 text-sm focus:outline-none focus:border-emerald-500 transition-colors resize-none"
+                className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 text-sm focus:outline-none focus:border-emerald-500 transition-colors resize-none"
               />
               <p className="text-xs text-gray-400 dark:text-gray-500">
                 {coverLetter.length} / 1000 characters
@@ -341,7 +372,7 @@ export default function ApplyPage() {
                       e.preventDefault();
                     }
                   }}
-                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl pl-8 pr-4 py-3 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 dark:placeholder-gray-400 text-sm focus:outline-none focus:border-emerald-500 transition-colors"
+                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl pl-8 pr-4 py-3 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 text-sm focus:outline-none focus:border-emerald-500 transition-colors"
                 />
               </div>
               <p className="text-xs text-gray-400 dark:text-gray-500">
@@ -385,7 +416,7 @@ export default function ApplyPage() {
                 placeholder="Describe your relevant experience for this specific job."
                 value={relevantExperience}
                 onChange={(e) => setRelevantExperience(e.target.value)}
-                className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 dark:placeholder-gray-400 text-sm focus:outline-none focus:border-emerald-500 transition-colors resize-none"
+                className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 text-sm focus:outline-none focus:border-emerald-500 transition-colors resize-none"
               />
             </div>
 
@@ -398,7 +429,7 @@ export default function ApplyPage() {
                 placeholder="List any questions you need answered before starting."
                 value={questionsForClient}
                 onChange={(e) => setQuestionsForClient(e.target.value)}
-                className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 dark:placeholder-gray-400 text-sm focus:outline-none focus:border-emerald-500 transition-colors resize-none"
+                className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 text-sm focus:outline-none focus:border-emerald-500 transition-colors resize-none"
               />
             </div>
 
@@ -444,13 +475,68 @@ export default function ApplyPage() {
               )}
 
               {portfolioMode === "upload" && (
-                <input
-                  type="file"
-                  onChange={(e) =>
-                    setPortfolioFile(e.target.files?.[0] || null)
-                  }
-                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white text-sm focus:outline-none focus:border-emerald-500 transition-colors"
-                />
+                <div className="space-y-2">
+                  <input
+                    type="file"
+                    accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0] || null;
+                      if (file) {
+                        const allowed = [
+                          "application/pdf",
+                          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                        ];
+                        const ext = file.name.split(".").pop()?.toLowerCase();
+                        if (
+                          !allowed.includes(file.type) ||
+                          !["pdf", "docx"].includes(ext || "")
+                        ) {
+                          setError("Only PDF and DOCX files are allowed.");
+                          e.target.value = "";
+                          setPortfolioFile(null);
+                          return;
+                        }
+                        if (file.size > 5 * 1024 * 1024) {
+                          setError("File must be under 5MB.");
+                          e.target.value = "";
+                          setPortfolioFile(null);
+                          return;
+                        }
+                        setError("");
+                        setUploadProgress("idle");
+                        setPortfolioFile(file);
+                      }
+                    }}
+                    className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white text-sm focus:outline-none focus:border-emerald-500 transition-colors"
+                  />
+                  {portfolioFile && uploadProgress === "idle" && (
+                    <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                      ✓ {portfolioFile.name} (
+                      {(portfolioFile.size / 1024).toFixed(0)}KB) ready to
+                      upload
+                    </p>
+                  )}
+                  {uploadProgress === "uploading" && (
+                    <div className="space-y-1">
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        Uploading file...
+                      </p>
+                      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
+                        <div className="bg-emerald-500 h-1.5 rounded-full animate-pulse w-3/4" />
+                      </div>
+                    </div>
+                  )}
+                  {uploadProgress === "done" && (
+                    <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                      ✓ File uploaded successfully
+                    </p>
+                  )}
+                  {uploadProgress === "error" && (
+                    <p className="text-xs text-red-500">
+                      ✗ Upload failed. Please try again.
+                    </p>
+                  )}
+                </div>
               )}
             </div>
 
