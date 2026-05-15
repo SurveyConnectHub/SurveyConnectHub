@@ -5,6 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { ProfileSkeleton } from "@/components/ui/Skeleton";
+import BackButton from "@/components/ui/BackButton";
 
 export default function ProfessionalProfilePage() {
   const router = useRouter();
@@ -258,12 +259,7 @@ export default function ProfessionalProfilePage() {
         <h1 className="text-xl font-bold text-gray-900 dark:text-white">
           Survey<span className="text-green-600">ConnectHub</span>
         </h1>
-        <Link
-          href="/professionals"
-          className="text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
-        >
-          Back to Professionals
-        </Link>
+        <BackButton href="/professionals" label="Browse Professionals" />
       </nav>
 
       <div className="max-w-3xl mx-auto px-6 py-10 space-y-6">

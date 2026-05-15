@@ -4,12 +4,14 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { PartyPopper } from "lucide-react";
+import BackButton from "@/components/ui/BackButton";
 
 type Job = {
   id: string;
   title: string;
   description: string;
   budget: number;
+  budget_model?: string | null;
   budget_type: string;
   job_type: string;
   location: string | null;
@@ -100,6 +102,10 @@ export default function ApplyPage() {
       }
 
       setJob(jobData);
+
+      if (jobData.budget_model === "fixed") {
+        setProposedRate(String(jobData.budget));
+      }
 
       const { data: existing } = await supabase
         .from("job_applications")
@@ -261,12 +267,7 @@ export default function ApplyPage() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white transition-colors duration-300">
       {/* Header */}
       <div className="border-b border-gray-200 dark:border-gray-800 px-6 py-4 flex items-center gap-4">
-        <button
-          onClick={() => router.back()}
-          className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors text-sm flex items-center gap-2"
-        >
-          ← Back
-        </button>
+        <BackButton label="Back to Job" />
         <span className="text-gray-300 dark:text-gray-600">|</span>
         <span className="text-gray-500 dark:text-gray-400 text-sm">
           Apply for Job
@@ -348,40 +349,54 @@ export default function ApplyPage() {
             </div>
 
             {/* Proposed Rate */}
-            <div className="space-y-2">
-              <label className="text-sm text-gray-700 dark:text-gray-300 font-medium">
-                What are you expecting to be paid? ($){" "}
-                <span className="text-red-400">*</span>
-              </label>
-              <div className="rounded-xl border border-emerald-200 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-900/20 px-4 py-3 text-xs text-emerald-700 dark:text-emerald-300">
-                Client budget: ${job?.budget.toLocaleString()}{" "}
-                {job?.budget_type}
+            {job?.budget_model !== "fixed" && (
+              <div className="space-y-2">
+                <label className="text-sm text-gray-700 dark:text-gray-300 font-medium">
+                  What are you expecting to be paid? ($){" "}
+                  <span className="text-red-400">*</span>
+                </label>
+                <div className="rounded-xl border border-emerald-200 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-900/20 px-4 py-3 text-xs text-emerald-700 dark:text-emerald-300">
+                  Client budget: ${job?.budget.toLocaleString()}{" "}
+                  {job?.budget_type}
+                </div>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm">
+                    $
+                  </span>
+                  <input
+                    type="number"
+                    placeholder="0.00"
+                    value={proposedRate}
+                    min="1"
+                    onChange={(e) => setProposedRate(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (["e", "E", "+", "-"].includes(e.key)) {
+                        e.preventDefault();
+                      }
+                    }}
+                    className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl pl-8 pr-4 py-3 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 text-sm focus:outline-none focus:border-emerald-500 transition-colors"
+                  />
+                </div>
+                <p className="text-xs text-gray-400 dark:text-gray-500">
+                  SurveyConnectHub takes 5% commission. You&apos;ll receive{" "}
+                  <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                    ${professionalReceives}
+                  </span>
+                </p>
               </div>
-              <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm">
-                  $
-                </span>
-                <input
-                  type="number"
-                  placeholder="0.00"
-                  value={proposedRate}
-                  min="1"
-                  onChange={(e) => setProposedRate(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (["e", "E", "+", "-"].includes(e.key)) {
-                      e.preventDefault();
-                    }
-                  }}
-                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl pl-8 pr-4 py-3 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 text-sm focus:outline-none focus:border-emerald-500 transition-colors"
-                />
+            )}
+            {job?.budget_model === "fixed" && (
+              <div className="rounded-xl border border-green-200 dark:border-green-700 bg-green-50 dark:bg-green-900/20 px-4 py-3">
+                <p className="text-sm text-green-700 dark:text-green-400 font-medium">
+                  Fixed Price Job — Rate: ${job.budget.toLocaleString()}{" "}
+                  {job.budget_type}
+                </p>
+                <p className="text-xs text-green-600 dark:text-green-500 mt-1">
+                  You receive ${(job.budget * 0.95).toFixed(2)} after 5%
+                  platform fee
+                </p>
               </div>
-              <p className="text-xs text-gray-400 dark:text-gray-500">
-                SurveyConnectHub takes 5% commission. You&apos;ll receive{" "}
-                <span className="text-emerald-600 dark:text-emerald-400 font-medium">
-                  ${professionalReceives}
-                </span>
-              </p>
-            </div>
+            )}
 
             {/* Estimated Delivery */}
             <div className="space-y-2">

@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import type { Profile, ProfessionalProfile } from "@/types/database";
 import {
@@ -16,6 +15,7 @@ import {
   Users,
 } from "lucide-react";
 import { LoadingButton } from "@/components/ui/LoadingButton";
+import BackButton from "@/components/ui/BackButton";
 
 export type AdminStats = {
   totalUsers: number;
@@ -57,9 +57,10 @@ export default function AdminContent({
   const [pendingProfessionals, setPendingProfessionals] = useState<
     PendingProfessional[]
   >(initialPendingProfessionals);
-  const [actionLoading, setActionLoading] = useState<
-    { id: string; type: "verified" | "rejected" } | null
-  >(null);
+  const [actionLoading, setActionLoading] = useState<{
+    id: string;
+    type: "verified" | "rejected";
+  } | null>(null);
   const [message, setMessage] = useState("");
 
   const getProfessionLabel = (type: string) => {
@@ -175,12 +176,7 @@ export default function AdminContent({
             ADMIN
           </span>
         </div>
-        <Link
-          href="/dashboard/client"
-          className="text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
-        >
-          ← Back to Dashboard
-        </Link>
+        <BackButton href="/dashboard/client" label="Dashboard" />
       </nav>
 
       <div className="max-w-6xl mx-auto px-6 py-8">
