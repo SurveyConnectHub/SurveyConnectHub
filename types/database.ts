@@ -56,6 +56,11 @@ export interface Job {
 	required_verification: boolean;
 	status: JobStatus;
 	applications_count: number;
+	experience_level: string | null;
+	budget_model: string | null;
+	budget_min: number | null;
+	budget_max: number | null;
+	screening_questions: string[] | null;
 	created_at: string;
 }
 
@@ -90,6 +95,7 @@ export interface JobApplication {
 	portfolio_item_id: string | null;
 	portfolio_attachment_url: string | null;
 	status: ApplicationStatus;
+	screening_answers: string[] | null;
 	created_at: string;
 }
 
