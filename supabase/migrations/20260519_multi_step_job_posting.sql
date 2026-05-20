@@ -11,6 +11,11 @@ ALTER TABLE job_applications
 ALTER TABLE IF EXISTS portfolio_items
   ADD COLUMN IF NOT EXISTS file_url text;
 
+-- Set default budget_model for existing jobs that don't have it
+UPDATE jobs
+SET budget_model = 'fixed'
+WHERE budget_model IS NULL OR budget_model = '';
+
 -- Create index for faster queries
 CREATE INDEX IF NOT EXISTS idx_jobs_experience_level ON jobs(experience_level);
 CREATE INDEX IF NOT EXISTS idx_jobs_screening_questions ON jobs USING GIN(screening_questions);

@@ -372,17 +372,18 @@ export default function ApplyPage() {
 						</div>
 
 						{/* Proposed Rate */}
-						{job?.budget_model !== "fixed" && (
-							<div className="space-y-2">
-								<label className="text-sm text-gray-700 dark:text-gray-300 font-medium">
-									What are you expecting to be paid? ($){" "}
-									<span className="text-red-400">*</span>
-								</label>
-								<div className="rounded-xl border border-emerald-200 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-900/20 px-4 py-3 text-xs text-emerald-700 dark:text-emerald-300">
-									Client budget: ${job?.budget.toLocaleString()}{" "}
-									{job?.budget_type}
-								</div>
-								<div className="relative">
+			{(!job?.budget_model || job?.budget_model === "negotiable") && (
+				<div className="space-y-2">
+					<label className="text-sm text-gray-700 dark:text-gray-300 font-medium">
+						What are you expecting to be paid? ($){" "}
+						<span className="text-red-400">*</span>
+					</label>
+					{job?.budget_model === "negotiable" && (
+						<div className="rounded-xl border border-emerald-200 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-900/20 px-4 py-3 text-xs text-emerald-700 dark:text-emerald-300">
+							Client budget: ${job?.budget.toLocaleString()}{" "}
+							{job?.budget_type}
+						</div>
+					)}
 									<span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm">
 										$
 									</span>
