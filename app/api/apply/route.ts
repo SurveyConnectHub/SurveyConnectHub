@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
 		.select("id")
 		.eq("job_id", jobId)
 		.eq("professional_id", user.id)
-		.single();
+		.maybeSingle();
 
 	if (existing) {
 		return NextResponse.json({ error: "Already applied" }, { status: 409 });
