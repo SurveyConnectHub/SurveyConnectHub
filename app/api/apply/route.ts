@@ -69,13 +69,16 @@ export async function POST(request: NextRequest) {
 		.from("jobs")
 		.select("id, status, client_id, title")
 		.eq("id", jobId)
-		.eq("status", "open")
 		.single();
 
 	if (!job) {
+		return NextResponse.json({ error: "Job not found" }, { status: 404 });
+	}
+
+	if (job.status !== "open") {
 		return NextResponse.json(
-			{ error: "Job not found or closed" },
-			{ status: 404 },
+			{ error: "This job is no longer accepting applications" },
+			{ status: 400 },
 		);
 	}
 
