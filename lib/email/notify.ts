@@ -46,7 +46,11 @@ const escapeHtml = (value: string) =>
 		.replace(/"/g, "&quot;")
 		.replace(/'/g, "&#39;");
 
-const throwError = (message: string, status: number, fields?: string[]) => {
+const throwError = (
+	message: string,
+	status: number,
+	fields?: string[],
+): never => {
 	const error = new Error(message) as NotifyError;
 	error.status = status;
 	if (fields) error.fields = fields;
