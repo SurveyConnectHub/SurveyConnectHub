@@ -2,6 +2,7 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { validateOrigin } from "@/lib/csrf";
 import { NextRequest, NextResponse } from "next/server";
+import { sendNotificationEmail } from "@/lib/email/notify";
 
 export async function POST(request: NextRequest) {
 	try {
@@ -247,12 +248,11 @@ export async function POST(request: NextRequest) {
 			});
 		}
 
-		const notifyUrl = new URL("/api/notify", request.url);
 		if (professional?.email && professional?.full_name) {
-			await fetch(notifyUrl, {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({
+			await sendNotificationEmail({
+				supabase,
+				userId: user.id,
+				payload: {
 					event: "payment_released",
 					recipientEmail: professional.email,
 					recipientName: professional.full_name,
@@ -261,8 +261,10 @@ export async function POST(request: NextRequest) {
 						jobTitle: contract.jobs?.title ?? "your job",
 						contractId,
 					},
-				}),
-			}).catch(() => {});
+				},
+			}).catch((error) => {
+				console.error("Failed to send payment email:", error);
+			});
 		}
 
 		try {

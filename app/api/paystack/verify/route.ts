@@ -1,4 +1,5 @@
 import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { sendNotificationEmail } from "@/lib/email/notify";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
@@ -150,7 +151,6 @@ export async function GET(request: NextRequest) {
 					.update({ status: "in_progress" })
 					.eq("id", contract.job_id);
 
-				const notifyUrl = new URL("/api/notify", request.url);
 				const { data: jobRecord } = await supabase
 					.from("jobs")
 					.select("title")
@@ -169,10 +169,10 @@ export async function GET(request: NextRequest) {
 					.single();
 
 				if (clientProfile?.email && clientProfile?.full_name) {
-					await fetch(notifyUrl, {
-						method: "POST",
-						headers: { "Content-Type": "application/json" },
-						body: JSON.stringify({
+					await sendNotificationEmail({
+						supabase,
+						userId: user.id,
+						payload: {
 							event: "contract_activated",
 							recipientEmail: clientProfile.email,
 							recipientName: clientProfile.full_name,
@@ -182,15 +182,20 @@ export async function GET(request: NextRequest) {
 								role: "client",
 								contractId,
 							},
-						}),
-					}).catch(() => {});
+						},
+					}).catch((error) => {
+						console.error(
+							"Failed to send contract activation email (client):",
+							error,
+						);
+					});
 				}
 
 				if (professionalProfile?.email && professionalProfile?.full_name) {
-					await fetch(notifyUrl, {
-						method: "POST",
-						headers: { "Content-Type": "application/json" },
-						body: JSON.stringify({
+					await sendNotificationEmail({
+						supabase,
+						userId: user.id,
+						payload: {
 							event: "contract_activated",
 							recipientEmail: professionalProfile.email,
 							recipientName: professionalProfile.full_name,
@@ -200,8 +205,13 @@ export async function GET(request: NextRequest) {
 								role: "professional",
 								contractId,
 							},
-						}),
-					}).catch(() => {});
+						},
+					}).catch((error) => {
+						console.error(
+							"Failed to send contract activation email (professional):",
+							error,
+						);
+					});
 				}
 
 				try {
