@@ -60,7 +60,11 @@ export async function sendNotificationEmail(options: {
 }): Promise<void> {
 	const { supabase, userId, payload } = options;
 
-	const { event, recipientEmail, recipientName, details } = payload ?? {};
+	if (!payload) {
+		throwError("Missing fields", 400);
+	}
+
+	const { event, recipientEmail, recipientName, details } = payload;
 
 	if (!event || !recipientEmail || !recipientName || !details) {
 		throwError("Missing fields", 400);
