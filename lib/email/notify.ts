@@ -1,5 +1,6 @@
 import { Resend } from "resend";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { createServiceClient } from "@/lib/supabase/server";
 
 export type NotifyEvent =
 	| "contract_activated"
@@ -71,6 +72,7 @@ export async function sendNotificationEmail(options: {
 	payload: NotifyPayload | null;
 }): Promise<void> {
 	const { supabase, userId, payload } = options;
+	const serviceClient = createServiceClient();
 
 	assertPayload(payload);
 
@@ -103,7 +105,7 @@ export async function sendNotificationEmail(options: {
 		// No contract or job ownership check required for verification emails.
 	} else if (event === "application_received") {
 		const jobId = details.jobId;
-		const { data: job, error: jobError } = await supabase
+		const { data: job, error: jobError } = await serviceClient
 			.from("jobs")
 			.select("id, client_id, profiles!jobs_client_id_fkey(email)")
 			.eq("id", jobId)
@@ -118,7 +120,7 @@ export async function sendNotificationEmail(options: {
 			throwError("Recipient mismatch", 403);
 		}
 
-		const { data: application } = await supabase
+		const { data: application } = await serviceClient
 			.from("job_applications")
 			.select("id")
 			.eq("job_id", jobId)
@@ -130,7 +132,7 @@ export async function sendNotificationEmail(options: {
 		}
 	} else {
 		const contractId = details.contractId;
-		const { data: contract, error: contractError } = await supabase
+		const { data: contract, error: contractError } = await serviceClient
 			.from("contracts")
 			.select(
 				`
