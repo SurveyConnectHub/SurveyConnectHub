@@ -57,6 +57,14 @@ const throwError = (
 	throw error;
 };
 
+function assertPayload(
+	payload: NotifyPayload | null,
+): asserts payload is NotifyPayload {
+	if (!payload) {
+		throwError("Missing fields", 400);
+	}
+}
+
 export async function sendNotificationEmail(options: {
 	supabase: SupabaseClient;
 	userId: string;
@@ -64,9 +72,7 @@ export async function sendNotificationEmail(options: {
 }): Promise<void> {
 	const { supabase, userId, payload } = options;
 
-	if (!payload) {
-		throwError("Missing fields", 400);
-	}
+	assertPayload(payload);
 
 	const { event, recipientEmail, recipientName, details } = payload;
 
@@ -106,8 +112,8 @@ export async function sendNotificationEmail(options: {
 		if (jobError || !job) {
 			throwError("Job not found", 404);
 		}
-
-		const jobClientEmail = job.profiles?.[0]?.email;
+		const jobData = job as NonNullable<typeof job>;
+		const jobClientEmail = jobData.profiles?.[0]?.email;
 		if (jobClientEmail !== recipientEmail) {
 			throwError("Recipient mismatch", 403);
 		}
@@ -141,14 +147,17 @@ export async function sendNotificationEmail(options: {
 		if (contractError || !contract) {
 			throwError("Contract not found", 404);
 		}
-
-		if (contract.client_id !== userId && contract.professional_id !== userId) {
+		const contractData = contract as NonNullable<typeof contract>;
+		if (
+			contractData.client_id !== userId &&
+			contractData.professional_id !== userId
+		) {
 			throwError("Forbidden", 403);
 		}
 
 		const allowedEmails = [
-			contract.client?.[0]?.email,
-			contract.professional?.[0]?.email,
+			contractData.client?.[0]?.email,
+			contractData.professional?.[0]?.email,
 		].filter(Boolean);
 
 		if (!allowedEmails.includes(recipientEmail)) {

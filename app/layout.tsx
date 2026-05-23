@@ -1,10 +1,7 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import PublicLayoutShell from "@/components/PublicLayoutShell";
-
-const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
 	title: {
@@ -66,7 +63,7 @@ export default function RootLayout({
 			lang="en"
 			suppressHydrationWarning
 		>
-			<body className={inter.className}>
+			<body>
 				<ThemeProvider>
 					<PublicLayoutShell>{children}</PublicLayoutShell>
 				</ThemeProvider>
