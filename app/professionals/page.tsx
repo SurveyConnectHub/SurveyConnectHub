@@ -28,8 +28,21 @@ const softwareToolOptions = [
 	"Other",
 ];
 
-type ProfessionalRow = ProfessionalProfile & {
-	profiles: Pick<Profile, "full_name" | "country" | "email"> | null;
+type ProfessionalRow = Pick<
+	ProfessionalProfile,
+	| "id"
+	| "profession_type"
+	| "secondary_profession"
+	| "license_number"
+	| "years_experience"
+	| "verification_status"
+	| "software_tools"
+	| "created_at"
+> & {
+	profiles:
+		| Pick<Profile, "full_name" | "country" | "email">
+		| Pick<Profile, "full_name" | "country" | "email">[]
+		| null;
 };
 
 function ProfessionalsPageContent() {
@@ -290,86 +303,91 @@ function ProfessionalsPageContent() {
 					</div>
 				) : (
 					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-						{professionals.map((prof) => (
-							<div
-								key={prof.id}
-								className="bg-white dark:bg-gray-900 rounded-2xl p-6 border border-gray-100 dark:border-gray-800 hover:border-green-300 dark:hover:border-green-700 hover:shadow-md transition-all"
-							>
-								<div className="flex items-center gap-3 mb-4">
-									<div className="w-12 h-12 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center shrink-0">
-										<span className="text-green-700 dark:text-green-300 font-bold">
-											{getInitials(prof.profiles?.full_name || "")}
-										</span>
-									</div>
-									<div>
-										<p className="font-semibold text-gray-900 dark:text-white">
-											{prof.profiles?.full_name}
-										</p>
-										<p className="text-xs text-gray-500 dark:text-gray-400">
-											{prof.profiles?.country}
-										</p>
-									</div>
-									{prof.verification_status === "verified" ? (
-										<span className="ml-auto bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-medium px-2 py-1 rounded-full">
-											<span className="inline-flex items-center gap-1">
-												<CheckCircle2 className="w-3.5 h-3.5" />
-												Verified
-											</span>
-										</span>
-									) : (
-										<span className="ml-auto bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 text-xs font-medium px-2 py-1 rounded-full">
-											<span className="inline-flex items-center gap-1">
-												<Hourglass className="w-3.5 h-3.5" />
-												Unverified
-											</span>
-										</span>
-									)}
-								</div>
-
-								<p className="text-green-600 dark:text-green-400 text-sm font-medium mb-2">
-									{getProfessionLabel(prof.profession_type)}
-								</p>
-
-								{prof.years_experience > 0 && (
-									<p className="text-gray-500 dark:text-gray-400 text-sm mb-3">
-										{prof.years_experience} year
-										{prof.years_experience !== 1 ? "s" : ""} experience
-									</p>
-								)}
-
-								{Array.isArray(prof.software_tools) &&
-									prof.software_tools.length > 0 && (
-										<div className="flex flex-wrap gap-2 mb-3">
-											{prof.software_tools.slice(0, 4).map((tool) => (
-												<span
-													key={tool}
-													className="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-xs px-2 py-0.5 rounded-full"
-												>
-													{tool}
-												</span>
-											))}
-											{prof.software_tools.length > 4 && (
-												<span className="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-xs px-2 py-0.5 rounded-full">
-													+{prof.software_tools.length - 4} more
-												</span>
-											)}
-										</div>
-									)}
-
-								{prof.license_number && (
-									<p className="text-xs text-gray-400 dark:text-gray-500 mb-4">
-										License: {prof.license_number}
-									</p>
-								)}
-
-								<Link
-									href={`/professionals/${prof.id}`}
-									className="block w-full text-center bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors"
+						{professionals.map((prof) => {
+							const profileInfo = Array.isArray(prof.profiles)
+								? prof.profiles[0]
+								: prof.profiles;
+							return (
+								<div
+									key={prof.id}
+									className="bg-white dark:bg-gray-900 rounded-2xl p-6 border border-gray-100 dark:border-gray-800 hover:border-green-300 dark:hover:border-green-700 hover:shadow-md transition-all"
 								>
-									View Profile
-								</Link>
-							</div>
-						))}
+									<div className="flex items-center gap-3 mb-4">
+										<div className="w-12 h-12 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center shrink-0">
+											<span className="text-green-700 dark:text-green-300 font-bold">
+												{getInitials(prof.profiles?.full_name || "")}
+											</span>
+										</div>
+										<div>
+											<p className="font-semibold text-gray-900 dark:text-white">
+												{profileInfo?.full_name}
+											</p>
+											<p className="text-xs text-gray-500 dark:text-gray-400">
+												{profileInfo?.country}
+											</p>
+										</div>
+										{prof.verification_status === "verified" ? (
+											<span className="ml-auto bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-medium px-2 py-1 rounded-full">
+												<span className="inline-flex items-center gap-1">
+													<CheckCircle2 className="w-3.5 h-3.5" />
+													Verified
+												</span>
+											</span>
+										) : (
+											<span className="ml-auto bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 text-xs font-medium px-2 py-1 rounded-full">
+												<span className="inline-flex items-center gap-1">
+													<Hourglass className="w-3.5 h-3.5" />
+													Unverified
+												</span>
+											</span>
+										)}
+									</div>
+
+									<p className="text-green-600 dark:text-green-400 text-sm font-medium mb-2">
+										{getProfessionLabel(prof.profession_type)}
+									</p>
+
+									{prof.years_experience > 0 && (
+										<p className="text-gray-500 dark:text-gray-400 text-sm mb-3">
+											{prof.years_experience} year
+											{prof.years_experience !== 1 ? "s" : ""} experience
+										</p>
+									)}
+
+									{Array.isArray(prof.software_tools) &&
+										prof.software_tools.length > 0 && (
+											<div className="flex flex-wrap gap-2 mb-3">
+												{prof.software_tools.slice(0, 4).map((tool) => (
+													<span
+														key={tool}
+														className="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-xs px-2 py-0.5 rounded-full"
+													>
+														{tool}
+													</span>
+												))}
+												{prof.software_tools.length > 4 && (
+													<span className="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-xs px-2 py-0.5 rounded-full">
+														+{prof.software_tools.length - 4} more
+													</span>
+												)}
+											</div>
+										)}
+
+									{prof.license_number && (
+										<p className="text-xs text-gray-400 dark:text-gray-500 mb-4">
+											License: {prof.license_number}
+										</p>
+									)}
+
+									<Link
+										href={`/professionals/${prof.id}`}
+										className="block w-full text-center bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors"
+									>
+										View Profile
+									</Link>
+								</div>
+							);
+						})}
 					</div>
 				)}
 
