@@ -31,6 +31,7 @@ export interface ProfessionalProfile {
 	secondary_profession: string | null;
 	license_number: string | null;
 	years_experience: number;
+	software_tools: string[];
 	id_document_url: string | null;
 	license_url: string | null;
 	verification_status: VerificationStatus;

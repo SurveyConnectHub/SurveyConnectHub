@@ -23,6 +23,24 @@ const professionOptions = [
 	"other",
 ];
 
+const softwareToolOptions = [
+	"ArcGIS Pro",
+	"QGIS",
+	"ArcGIS Online",
+	"Google Earth Engine",
+	"GRASS GIS",
+	"ENVI",
+	"Global Mapper",
+	"AutoCAD Civil 3D",
+	"Pix4D",
+	"Agisoft Metashape",
+	"GDAL/OGR",
+	"PostGIS",
+	"FME",
+	"Blender GIS",
+	"Other",
+];
+
 export default function ProfessionalOnboardingPage() {
 	const router = useRouter();
 	const supabase = useMemo(() => createClient(), []);
@@ -38,6 +56,7 @@ export default function ProfessionalOnboardingPage() {
 		country: "",
 		city: "",
 		bio: "",
+		software_tools: [] as string[],
 		profession_type: "",
 		custom_profession: "",
 		years_experience: "",
@@ -71,7 +90,7 @@ export default function ProfessionalOnboardingPage() {
 			const { data: professional } = await supabase
 				.from("professional_profiles")
 				.select(
-					"onboarding_completed, onboarding_step, profession_type, years_experience, license_number",
+					"onboarding_completed, onboarding_step, profession_type, years_experience, license_number, software_tools",
 				)
 				.eq("id", user.id)
 				.maybeSingle();
@@ -114,6 +133,7 @@ export default function ProfessionalOnboardingPage() {
 				country: profile.country || "",
 				city: profile.city || "",
 				bio: profile.bio || "",
+				software_tools: professional?.software_tools || [],
 				profession_type: initialProfessionType,
 				custom_profession: initialCustomProfession,
 				years_experience: professional?.years_experience
@@ -199,6 +219,7 @@ export default function ProfessionalOnboardingPage() {
 								profession_type: resolvedProfessionType,
 								years_experience: years,
 								license_number: formData.license_number.trim() || null,
+								software_tools: formData.software_tools,
 							},
 							{ onConflict: "id" },
 						)
@@ -402,6 +423,42 @@ export default function ProfessionalOnboardingPage() {
 
 					{step === 2 && (
 						<>
+							<div>
+								<p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+									GIS Software &amp; Tools
+								</p>
+								<p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+									Select the GIS stack you use in the field and lab.
+								</p>
+								<div className="flex flex-wrap gap-2">
+									{softwareToolOptions.map((tool) => {
+										const isSelected = formData.software_tools.includes(tool);
+										return (
+											<button
+												key={tool}
+												type="button"
+												onClick={() =>
+													setFormData((prev) => ({
+														...prev,
+														software_tools: isSelected
+															? prev.software_tools.filter(
+																	(item) => item !== tool,
+																)
+															: [...prev.software_tools, tool],
+													}))
+												}
+												className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+													isSelected
+														? "bg-green-600 text-white"
+														: "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
+												}`}
+											>
+												{tool}
+											</button>
+										);
+									})}
+								</div>
+							</div>
 							<div>
 								<label
 									htmlFor="onboarding-profession-type"

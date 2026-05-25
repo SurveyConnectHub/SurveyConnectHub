@@ -10,6 +10,24 @@ import type { Profile, ProfessionalProfile } from "@/types/database";
 
 const PAGE_SIZE = 12;
 
+const softwareToolOptions = [
+	"ArcGIS Pro",
+	"QGIS",
+	"ArcGIS Online",
+	"Google Earth Engine",
+	"GRASS GIS",
+	"ENVI",
+	"Global Mapper",
+	"AutoCAD Civil 3D",
+	"Pix4D",
+	"Agisoft Metashape",
+	"GDAL/OGR",
+	"PostGIS",
+	"FME",
+	"Blender GIS",
+	"Other",
+];
+
 type ProfessionalRow = ProfessionalProfile & {
 	profiles: Pick<Profile, "full_name" | "country" | "email"> | null;
 };
@@ -24,6 +42,7 @@ function ProfessionalsPageContent() {
 	const [profile, setProfile] = useState<any>(null);
 	const [search, setSearch] = useState("");
 	const [filterProfession, setFilterProfession] = useState("");
+	const [filterSoftware, setFilterSoftware] = useState("");
 	const [totalCount, setTotalCount] = useState(0);
 
 	const pageParam = Number.parseInt(searchParams.get("page") ?? "1", 10);
@@ -53,13 +72,20 @@ function ProfessionalsPageContent() {
 			// Removed .eq('verification_status', 'verified') — show all professionals
 			let query = supabase.from("professional_profiles").select(
 				`
-          *,
-          profiles (
-            full_name,
-            country,
-            email
-          )
-					`,
+					id,
+					profession_type,
+					secondary_profession,
+					license_number,
+					years_experience,
+					verification_status,
+					software_tools,
+					created_at,
+					profiles (
+						full_name,
+						country,
+						email
+					)
+				`,
 				{ count: "exact" },
 			);
 
@@ -72,6 +98,10 @@ function ProfessionalsPageContent() {
 
 			if (filterProfession) {
 				query = query.eq("profession_type", filterProfession);
+			}
+
+			if (filterSoftware) {
+				query = query.contains("software_tools", [filterSoftware]);
 			}
 
 			const { data, count, error } = await query
@@ -91,7 +121,30 @@ function ProfessionalsPageContent() {
 			setLoading(false);
 		};
 		getData();
-	}, [currentPage, pageIndex, router, supabase, search, filterProfession]);
+	}, [
+		currentPage,
+		pageIndex,
+		router,
+		supabase,
+		search,
+		filterProfession,
+		filterSoftware,
+	]);
+
+	useEffect(() => {
+		if (currentPage === 1) return;
+		const params = new URLSearchParams(searchParams.toString());
+		params.delete("page");
+		const nextQuery = params.toString();
+		router.push(nextQuery ? `/professionals?${nextQuery}` : "/professionals");
+	}, [
+		currentPage,
+		filterProfession,
+		filterSoftware,
+		router,
+		search,
+		searchParams,
+	]);
 
 	const getProfessionLabel = (type: string) => {
 		const labels: Record<string, string> = {
@@ -164,7 +217,7 @@ function ProfessionalsPageContent() {
 				</div>
 
 				<div className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-800 mb-6">
-					<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+					<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 						<input
 							type="text"
 							value={search}
@@ -203,6 +256,22 @@ function ProfessionalsPageContent() {
 								Environmental Analyst
 							</option>
 							<option value="bim_specialist">BIM Specialist</option>
+						</select>
+						<select
+							value={filterSoftware}
+							onChange={(e) => setFilterSoftware(e.target.value)}
+							aria-label="Filter by GIS software"
+							className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800 dark:placeholder-gray-400"
+						>
+							<option value="">All Software</option>
+							{softwareToolOptions.map((tool) => (
+								<option
+									key={tool}
+									value={tool}
+								>
+									{tool}
+								</option>
+							))}
 						</select>
 					</div>
 				</div>
@@ -267,6 +336,25 @@ function ProfessionalsPageContent() {
 										{prof.years_experience !== 1 ? "s" : ""} experience
 									</p>
 								)}
+
+								{Array.isArray(prof.software_tools) &&
+									prof.software_tools.length > 0 && (
+										<div className="flex flex-wrap gap-2 mb-3">
+											{prof.software_tools.slice(0, 4).map((tool) => (
+												<span
+													key={tool}
+													className="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-xs px-2 py-0.5 rounded-full"
+												>
+													{tool}
+												</span>
+											))}
+											{prof.software_tools.length > 4 && (
+												<span className="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-xs px-2 py-0.5 rounded-full">
+													+{prof.software_tools.length - 4} more
+												</span>
+											)}
+										</div>
+									)}
 
 								{prof.license_number && (
 									<p className="text-xs text-gray-400 dark:text-gray-500 mb-4">
