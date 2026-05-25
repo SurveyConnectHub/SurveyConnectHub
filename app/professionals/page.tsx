@@ -315,7 +315,7 @@ function ProfessionalsPageContent() {
 									<div className="flex items-center gap-3 mb-4">
 										<div className="w-12 h-12 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center shrink-0">
 											<span className="text-green-700 dark:text-green-300 font-bold">
-												{getInitials(prof.profiles?.full_name || "")}
+												{getInitials(profileInfo?.full_name || "")}
 											</span>
 										</div>
 										<div>
