@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { LoadingButton } from "@/components/ui/LoadingButton";
 import BackButton from "@/components/ui/BackButton";
+import ActionModal from "@/components/ui/ActionModal";
 
 export type AdminStats = {
 	totalUsers: number;
@@ -62,6 +63,10 @@ export default function AdminContent({
 		type: "verified" | "rejected";
 	} | null>(null);
 	const [message, setMessage] = useState("");
+	const [noticeModal, setNoticeModal] = useState<{
+		title: string;
+		message: string;
+	} | null>(null);
 
 	const getProfessionLabel = (type: string) => {
 		const labels: Record<string, string> = {
@@ -105,7 +110,10 @@ export default function AdminContent({
 			throw new Error("Signed URL missing");
 		} catch (error) {
 			console.error("Failed to load document:", error);
-			alert("Could not load document.");
+			setNoticeModal({
+				title: "Could not load document",
+				message: "Please try again or refresh the page.",
+			});
 		}
 	};
 
@@ -459,6 +467,16 @@ export default function AdminContent({
 					)}
 				</div>
 			</div>
+
+			<ActionModal
+				open={Boolean(noticeModal)}
+				onClose={() => setNoticeModal(null)}
+				variant="info"
+				title={noticeModal?.title ?? "Notice"}
+				description={noticeModal?.message}
+				confirmLabel="Got it"
+				showCancel={false}
+			/>
 		</div>
 	);
 }

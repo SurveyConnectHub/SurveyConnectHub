@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import BackButton from "@/components/ui/BackButton";
 import { CardSkeleton } from "@/components/ui/Skeleton";
+import ActionModal from "@/components/ui/ActionModal";
 import { Plus, Pencil, Trash2, UploadCloud } from "lucide-react";
 import type { PortfolioItem } from "@/types/database";
 
@@ -59,6 +60,9 @@ export default function PortfolioManagerPage() {
 	const [formData, setFormData] = useState({ ...emptyForm });
 	const [editingItem, setEditingItem] = useState<PortfolioItem | null>(null);
 	const [editorOpen, setEditorOpen] = useState(false);
+	const [deleteCandidate, setDeleteCandidate] = useState<PortfolioItem | null>(
+		null,
+	);
 
 	const buildSignedUrl = useCallback(async (path: string) => {
 		if (!path) return "";
@@ -261,8 +265,14 @@ export default function PortfolioManagerPage() {
 		}
 	};
 
-	const handleDelete = async (item: PortfolioItem) => {
-		if (!confirm("Delete this portfolio item?")) return;
+	const requestDelete = (item: PortfolioItem) => {
+		setDeleteCandidate(item);
+	};
+
+	const confirmDelete = async () => {
+		if (!deleteCandidate) return;
+		const item = deleteCandidate;
+		setDeleteCandidate(null);
 		setSaving(true);
 		setError("");
 
@@ -337,9 +347,9 @@ export default function PortfolioManagerPage() {
 					>
 						<Plus className="w-4 h-4" />
 						Add Portfolio Item
-					</button>
+										<button
 				</div>
-
+											onClick={() => requestDelete(item)}
 				{error && (
 					<div className="rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm text-red-700 dark:text-red-400 mb-6">
 						{error}
@@ -384,7 +394,23 @@ export default function PortfolioManagerPage() {
 									</div>
 								)}
 								<div className="p-5 space-y-3">
-									<div>
+									</div>
+
+									<ActionModal
+										open={Boolean(deleteCandidate)}
+										onClose={() => setDeleteCandidate(null)}
+										onConfirm={confirmDelete}
+										variant="danger"
+										title="Delete this portfolio item?"
+										description={
+											deleteCandidate?.title
+												? `"${deleteCandidate.title}" will be removed from your portfolio.`
+												: "This item will be removed from your portfolio."
+										}
+										confirmLabel="Delete item"
+										cancelLabel="Keep item"
+										isProcessing={saving}
+									/>
 										<h3 className="text-lg font-semibold text-gray-900 dark:text-white">
 											{item.title || "Untitled project"}
 										</h3>

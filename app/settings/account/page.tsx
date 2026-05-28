@@ -8,6 +8,7 @@ import { Eye, EyeOff } from "lucide-react";
 import { useLoadingState } from "@/hooks/useLoadingState";
 import { LoadingButton } from "@/components/ui/LoadingButton";
 import BackButton from "@/components/ui/BackButton";
+import ActionModal from "@/components/ui/ActionModal";
 
 type Bank = {
 	code: string;
@@ -37,6 +38,7 @@ export default function AccountSettingsPage() {
 	const supabase = useMemo(() => createClient(), []);
 	const [loading, setLoading] = useState(true);
 	const [isSigningOut, setIsSigningOut] = useState(false);
+	const [signOutModalOpen, setSignOutModalOpen] = useState(false);
 	const { isLoading: isSavingProfile, withLoading: withProfileLoading } =
 		useLoadingState();
 	const {
@@ -271,11 +273,13 @@ export default function AccountSettingsPage() {
 		});
 	};
 
-	const handleSignOut = async () => {
-		const confirmed = window.confirm("Sign out of your account?");
-		if (!confirmed) return;
+	const handleSignOut = () => {
+		setSignOutModalOpen(true);
+	};
 
+	const confirmSignOut = async () => {
 		setIsSigningOut(true);
+		setSignOutModalOpen(false);
 		await supabase.auth.signOut();
 		router.push("/login");
 	};
@@ -728,6 +732,18 @@ export default function AccountSettingsPage() {
 					</button>
 				</div>
 			</div>
+
+			<ActionModal
+				open={signOutModalOpen}
+				onClose={() => setSignOutModalOpen(false)}
+				onConfirm={confirmSignOut}
+				variant="danger"
+				title="Sign out of your account?"
+				description="You will need to sign in again to access your account."
+				confirmLabel="Sign out"
+				cancelLabel="Stay signed in"
+				isProcessing={isSigningOut}
+			/>
 		</div>
 	);
 }
