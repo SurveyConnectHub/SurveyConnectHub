@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { CardSkeleton } from "@/components/ui/Skeleton";
+import Image from "next/image";
 
 const professionOptions = [
 	"land_surveyor",
@@ -88,16 +89,16 @@ export default function ProfessionalOnboardingPage() {
 	const PORTFOLIO_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 	const MAX_PORTFOLIO_IMAGE_SIZE = 5 * 1024 * 1024;
 
-	const buildSignedUrl = async (path: string) => {
+	const buildSignedUrl = useCallback(async (path: string) => {
 		if (!path) return "";
 		if (path.startsWith("http")) return path;
 		const { data } = await supabase.storage
 			.from("portfolio-images")
 			.createSignedUrl(path, 60 * 60);
 		return data?.signedUrl || "";
-	};
+	}, [supabase]);
 
-	const loadPortfolioItems = async (ownerId: string) => {
+	const loadPortfolioItems = useCallback(async (ownerId: string) => {
 		setPortfolioLoading(true);
 		setPortfolioError("");
 		try {
@@ -128,7 +129,7 @@ export default function ProfessionalOnboardingPage() {
 		} finally {
 			setPortfolioLoading(false);
 		}
-	};
+	}, [buildSignedUrl, supabase]);
 
 	useEffect(() => {
 		const init = async () => {
@@ -215,7 +216,7 @@ export default function ProfessionalOnboardingPage() {
 		};
 
 		init();
-	}, [router, supabase]);
+	}, [loadPortfolioItems, router, supabase]);
 
 	const saveStep = async (
 		nextStep: "profile" | "professional" | "portfolio" | "complete",
@@ -1034,11 +1035,15 @@ export default function ProfessionalOnboardingPage() {
 												className="border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden bg-white dark:bg-gray-900"
 											>
 												{portfolioPreviewUrls[item.id] && (
-													<img
-														src={portfolioPreviewUrls[item.id]}
-														alt={item.title || "Portfolio preview"}
-														className="w-full h-36 object-cover"
-													/>
+													<div className="relative w-full h-36">
+														<Image
+															src={portfolioPreviewUrls[item.id]}
+															alt={item.title || "Portfolio preview"}
+															fill
+															sizes="(max-width: 768px) 100vw, 50vw"
+															className="object-cover"
+														/>
+													</div>
 												)}
 												<div className="p-4 space-y-2">
 													<p className="font-semibold text-gray-900 dark:text-white text-sm">

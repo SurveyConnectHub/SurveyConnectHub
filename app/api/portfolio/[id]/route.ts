@@ -79,7 +79,7 @@ const sanitizeIframeHtml = (input: string | null): string | null => {
 
 export async function PATCH(
 	request: NextRequest,
-	{ params }: { params: { id: string } },
+	context: { params: Promise<{ id: string }> },
 ) {
 	try {
 		if (!validateOrigin(request)) {
@@ -99,7 +99,7 @@ export async function PATCH(
 			return NextResponse.json({ error: "Too many requests" }, { status: 429 });
 		}
 
-		const id = params.id;
+		const { id } = await context.params;
 		if (!id) {
 			return NextResponse.json({ error: "Missing id" }, { status: 400 });
 		}
@@ -189,7 +189,7 @@ export async function PATCH(
 
 export async function DELETE(
 	request: NextRequest,
-	{ params }: { params: { id: string } },
+	context: { params: Promise<{ id: string }> },
 ) {
 	try {
 		if (!validateOrigin(request)) {
@@ -209,7 +209,7 @@ export async function DELETE(
 			return NextResponse.json({ error: "Too many requests" }, { status: 429 });
 		}
 
-		const id = params.id;
+		const { id } = await context.params;
 		if (!id) {
 			return NextResponse.json({ error: "Missing id" }, { status: 400 });
 		}

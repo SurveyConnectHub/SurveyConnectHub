@@ -1,8 +1,9 @@
 ﻿"use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import { ProfileSkeleton, CardSkeleton } from "@/components/ui/Skeleton";
 import BackButton from "@/components/ui/BackButton";
@@ -109,16 +110,16 @@ export default function ProfessionalProfilePage() {
 		: null;
 	const isOwner = viewerId === id;
 
-	const buildSignedUrl = async (path: string) => {
+	const buildSignedUrl = useCallback(async (path: string) => {
 		if (!path) return "";
 		if (path.startsWith("http")) return path;
 		const { data } = await supabase.storage
 			.from("portfolio-images")
 			.createSignedUrl(path, 60 * 60);
 		return data?.signedUrl || "";
-	};
+	}, [supabase]);
 
-	const loadPortfolioItems = async (ownerId: string) => {
+	const loadPortfolioItems = useCallback(async (ownerId: string) => {
 		setPortfolioLoading(true);
 		setPortfolioError("");
 		try {
@@ -145,7 +146,7 @@ export default function ProfessionalProfilePage() {
 		} finally {
 			setPortfolioLoading(false);
 		}
-	};
+	}, [buildSignedUrl, supabase]);
 
 	const openEditor = (item?: PortfolioItem) => {
 		if (item) {
@@ -338,7 +339,7 @@ export default function ProfessionalProfilePage() {
 		};
 
 		getData();
-	}, [id, router, supabase]);
+	}, [id, loadPortfolioItems, router, supabase]);
 
 	const handleSubmitReview = async () => {
 		if (!rating || !selectedContract) return;
@@ -701,11 +702,15 @@ export default function ProfessionalProfilePage() {
 												className="border border-gray-100 dark:border-gray-800 rounded-2xl overflow-hidden bg-white dark:bg-gray-900"
 											>
 												{portfolioPreviewUrls[item.id] && (
-													<img
-														src={portfolioPreviewUrls[item.id]}
-														alt={item.title || "Portfolio preview"}
-														className="w-full h-44 object-cover"
-													/>
+													<div className="relative w-full h-44">
+														<Image
+															src={portfolioPreviewUrls[item.id]}
+															alt={item.title || "Portfolio preview"}
+															fill
+															sizes="(max-width: 768px) 100vw, 50vw"
+															className="object-cover"
+														/>
+													</div>
 												)}
 												<div className="p-4 space-y-3">
 													<div>

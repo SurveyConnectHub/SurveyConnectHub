@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import BackButton from "@/components/ui/BackButton";
@@ -59,16 +60,16 @@ export default function PortfolioManagerPage() {
 	const [editingItem, setEditingItem] = useState<PortfolioItem | null>(null);
 	const [editorOpen, setEditorOpen] = useState(false);
 
-	const buildSignedUrl = async (path: string) => {
+	const buildSignedUrl = useCallback(async (path: string) => {
 		if (!path) return "";
 		if (path.startsWith("http")) return path;
 		const { data } = await supabase.storage
 			.from("portfolio-images")
 			.createSignedUrl(path, 60 * 60);
 		return data?.signedUrl || "";
-	};
+	}, [supabase]);
 
-	const loadItems = async (ownerId: string) => {
+	const loadItems = useCallback(async (ownerId: string) => {
 		setLoading(true);
 		setError("");
 		try {
@@ -95,7 +96,7 @@ export default function PortfolioManagerPage() {
 		} finally {
 			setLoading(false);
 		}
-	};
+	}, [buildSignedUrl, supabase]);
 
 	useEffect(() => {
 		const init = async () => {
@@ -124,7 +125,7 @@ export default function PortfolioManagerPage() {
 		};
 
 		init();
-	}, [router, supabase]);
+	}, [loadItems, router, supabase]);
 
 	const resetEditor = () => {
 		setFormData({ ...emptyForm });
@@ -372,11 +373,15 @@ export default function PortfolioManagerPage() {
 								className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 overflow-hidden"
 							>
 								{previewUrls[item.id] && (
-									<img
-										src={previewUrls[item.id]}
-										alt={item.title || "Portfolio preview"}
-										className="w-full h-44 object-cover"
-									/>
+									<div className="relative w-full h-44">
+										<Image
+											src={previewUrls[item.id]}
+											alt={item.title || "Portfolio preview"}
+											fill
+											sizes="(max-width: 768px) 100vw, 50vw"
+											className="object-cover"
+										/>
+									</div>
 								)}
 								<div className="p-5 space-y-3">
 									<div>
