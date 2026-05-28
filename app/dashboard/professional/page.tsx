@@ -11,11 +11,13 @@ import AppBrand from "@/components/dashboard/AppBrand";
 import DashboardHeaderActions from "@/components/dashboard/DashboardHeaderActions";
 import StatCard from "@/components/dashboard/StatCard";
 import QuickActionGrid from "@/components/dashboard/QuickActionGrid";
+import { CardSkeleton } from "@/components/ui/Skeleton";
 import {
 	Search,
 	ClipboardList,
 	FileText,
 	User,
+	LayoutGrid,
 	CheckCircle2,
 	AlertTriangle,
 	Star,
@@ -182,8 +184,15 @@ export default function ProfessionalDashboard() {
 
 	if (loading) {
 		return (
-			<div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
-				<div className="text-gray-500 dark:text-gray-400">Loading...</div>
+			<div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center px-6">
+				<div className="w-full max-w-4xl space-y-4">
+					<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+						<CardSkeleton />
+						<CardSkeleton />
+						<CardSkeleton />
+					</div>
+					<CardSkeleton />
+				</div>
 			</div>
 		);
 	}
@@ -214,6 +223,15 @@ export default function ProfessionalDashboard() {
 			label: "My Contracts",
 			desc: "View active contracts and mark jobs complete",
 			badge: unreadCount,
+		},
+		{
+			href: "/dashboard/professional/portfolio",
+			icon: (
+				<LayoutGrid className="w-5 h-5 text-emerald-700 dark:text-emerald-300" />
+			),
+			iconBg: "bg-emerald-100 dark:bg-emerald-900/40",
+			label: "Manage Portfolio",
+			desc: "Update projects and preview images",
 		},
 		{
 			href: profile?.id ? `/professionals/${profile.id}` : "/professionals",

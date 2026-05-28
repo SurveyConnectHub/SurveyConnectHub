@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { CardSkeleton } from "@/components/ui/Skeleton";
 
 const professionOptions = [
 	"land_surveyor",
@@ -49,6 +50,15 @@ export default function ProfessionalOnboardingPage() {
 	const [error, setError] = useState("");
 	const [step, setStep] = useState(1);
 	const [userId, setUserId] = useState("");
+	const [portfolioItems, setPortfolioItems] = useState<any[]>([]);
+	const [portfolioLoading, setPortfolioLoading] = useState(true);
+	const [portfolioError, setPortfolioError] = useState("");
+	const [portfolioSaving, setPortfolioSaving] = useState(false);
+	const [previewImageFile, setPreviewImageFile] = useState<File | null>(null);
+	const [previewImageError, setPreviewImageError] = useState("");
+	const [portfolioPreviewUrls, setPortfolioPreviewUrls] = useState<
+		Record<string, string>
+	>({});
 
 	const [formData, setFormData] = useState({
 		full_name: "",
@@ -62,6 +72,63 @@ export default function ProfessionalOnboardingPage() {
 		years_experience: "",
 		license_number: "",
 	});
+
+	const [portfolioForm, setPortfolioForm] = useState({
+		title: "",
+		description: "",
+		project_type: "",
+		data_sources: "",
+		crs: "",
+		scale_resolution: "",
+		software_used: [] as string[],
+		file_url: "",
+		map_embed_html: "",
+	});
+
+	const PORTFOLIO_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
+	const MAX_PORTFOLIO_IMAGE_SIZE = 5 * 1024 * 1024;
+
+	const buildSignedUrl = async (path: string) => {
+		if (!path) return "";
+		if (path.startsWith("http")) return path;
+		const { data } = await supabase.storage
+			.from("portfolio-images")
+			.createSignedUrl(path, 60 * 60);
+		return data?.signedUrl || "";
+	};
+
+	const loadPortfolioItems = async (ownerId: string) => {
+		setPortfolioLoading(true);
+		setPortfolioError("");
+		try {
+			const { data, error: portfolioLoadError } = await supabase
+				.from("portfolio_items")
+				.select("*")
+				.eq("professional_id", ownerId)
+				.order("created_at", { ascending: false });
+
+			if (portfolioLoadError) {
+				throw portfolioLoadError;
+			}
+
+			setPortfolioItems(data || []);
+			const previews: Record<string, string> = {};
+			await Promise.all(
+				(data || []).map(async (item: any) => {
+					const url = await buildSignedUrl(item.preview_image_url);
+					if (url) previews[item.id] = url;
+				}),
+			);
+			setPortfolioPreviewUrls(previews);
+			return data || [];
+		} catch (err: any) {
+			console.error("Failed to load portfolio items", err);
+			setPortfolioError("Failed to load portfolio items.");
+			return [];
+		} finally {
+			setPortfolioLoading(false);
+		}
+	};
 
 	useEffect(() => {
 		const init = async () => {
@@ -103,7 +170,8 @@ export default function ProfessionalOnboardingPage() {
 			const stepMap: Record<string, number> = {
 				profile: 1,
 				professional: 2,
-				complete: 3,
+				portfolio: 3,
+				complete: 4,
 			};
 
 			setStep(stepMap[professional?.onboarding_step || "profile"] || 1);
@@ -142,6 +210,7 @@ export default function ProfessionalOnboardingPage() {
 				license_number: professional?.license_number || "",
 			});
 
+			await loadPortfolioItems(user.id);
 			setLoading(false);
 		};
 
@@ -149,7 +218,7 @@ export default function ProfessionalOnboardingPage() {
 	}, [router, supabase]);
 
 	const saveStep = async (
-		nextStep: "profile" | "professional" | "complete",
+		nextStep: "profile" | "professional" | "portfolio" | "complete",
 	) => {
 		setSaving(true);
 		setError("");
@@ -160,7 +229,8 @@ export default function ProfessionalOnboardingPage() {
 			return false;
 		}
 
-		const shouldValidateProfessionalFields = nextStep !== "professional";
+		const shouldValidateProfessionalFields =
+			nextStep === "portfolio" || nextStep === "complete";
 		const resolvedProfessionType =
 			formData.profession_type === "other"
 				? formData.custom_profession.trim()
@@ -237,15 +307,29 @@ export default function ProfessionalOnboardingPage() {
 	};
 
 	const handleContinue = async () => {
-		const next = step === 1 ? "professional" : "complete";
+		const next = step === 1 ? "professional" : step === 2 ? "portfolio" : "complete";
+		if (next === "complete") {
+			const items = await loadPortfolioItems(userId);
+			if (items.length === 0) {
+				setError("Add at least one portfolio item to continue.");
+				return;
+			}
+		}
 		const ok = await saveStep(next);
 		if (!ok) return;
-		setStep((prev) => Math.min(3, prev + 1));
+		setStep((prev) => Math.min(4, prev + 1));
 	};
 
 	const handleFinish = async () => {
 		setSaving(true);
 		setError("");
+
+		const items = await loadPortfolioItems(userId);
+		if (items.length === 0) {
+			setSaving(false);
+			setError("Add at least one portfolio item to finish onboarding.");
+			return;
+		}
 
 		const { error: completionError } = await supabase
 			.from("professional_profiles")
@@ -276,9 +360,10 @@ export default function ProfessionalOnboardingPage() {
 
 	if (loading) {
 		return (
-			<div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
-				<div className="text-gray-500 dark:text-gray-400">
-					Preparing onboarding...
+			<div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center px-6">
+				<div className="w-full max-w-md space-y-4">
+					<CardSkeleton />
+					<CardSkeleton />
 				</div>
 			</div>
 		);
@@ -304,7 +389,7 @@ export default function ProfessionalOnboardingPage() {
 						Professional Onboarding
 					</h2>
 					<p className="text-gray-500 dark:text-gray-400 mt-1">
-						Step {step} of 3
+						Step {step} of 4
 					</p>
 				</div>
 
@@ -561,6 +646,440 @@ export default function ProfessionalOnboardingPage() {
 					)}
 
 					{step === 3 && (
+						<div className="space-y-6">
+							<div className="rounded-xl border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 p-4">
+								<p className="font-semibold text-green-700 dark:text-green-400">
+									Add your portfolio
+								</p>
+								<p className="text-sm text-green-700 dark:text-green-400 mt-1">
+									Add at least one project with a preview image so clients can
+									understand your geospatial work.
+								</p>
+							</div>
+
+							{portfolioError && (
+								<div className="rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm text-red-700 dark:text-red-400">
+									{portfolioError}
+								</div>
+							)}
+
+							<div className="space-y-4">
+								<div>
+									<label
+										htmlFor="portfolio-title"
+										className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+									>
+										Project Title <span className="text-red-500">*</span>
+									</label>
+									<input
+										id="portfolio-title"
+										type="text"
+										value={portfolioForm.title}
+										onChange={(e) =>
+											setPortfolioForm((prev) => ({
+												...prev,
+												title: e.target.value,
+											}))
+										}
+										className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 bg-white dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
+										placeholder="Land survey for residential layout"
+									/>
+								</div>
+
+								<div>
+									<label
+										htmlFor="portfolio-description"
+										className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+									>
+										Description
+									</label>
+									<textarea
+										id="portfolio-description"
+										rows={3}
+										value={portfolioForm.description}
+										onChange={(e) =>
+											setPortfolioForm((prev) => ({
+												...prev,
+												description: e.target.value,
+											}))
+										}
+										className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 bg-white dark:bg-gray-800 resize-none dark:text-white dark:placeholder-gray-400"
+										placeholder="Summarize the scope, outputs, and outcome."
+									/>
+								</div>
+
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+									<div>
+										<label
+											htmlFor="portfolio-project-type"
+											className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+										>
+											Project Type
+										</label>
+										<input
+											id="portfolio-project-type"
+											type="text"
+											value={portfolioForm.project_type}
+											onChange={(e) =>
+												setPortfolioForm((prev) => ({
+													...prev,
+													project_type: e.target.value,
+												}))
+											}
+											className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 bg-white dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
+											placeholder="Topographic survey"
+										/>
+									</div>
+									<div>
+										<label
+											htmlFor="portfolio-data-sources"
+											className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+										>
+											Data Sources
+										</label>
+										<input
+											id="portfolio-data-sources"
+											type="text"
+											value={portfolioForm.data_sources}
+											onChange={(e) =>
+												setPortfolioForm((prev) => ({
+													...prev,
+													data_sources: e.target.value,
+												}))
+											}
+											className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 bg-white dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
+											placeholder="GNSS, UAV, satellite imagery"
+										/>
+									</div>
+								</div>
+
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+									<div>
+										<label
+											htmlFor="portfolio-crs"
+											className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+										>
+											Coordinate System (CRS)
+										</label>
+										<input
+											id="portfolio-crs"
+											type="text"
+											value={portfolioForm.crs}
+											onChange={(e) =>
+												setPortfolioForm((prev) => ({
+													...prev,
+													crs: e.target.value,
+												}))
+											}
+											className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 bg-white dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
+											placeholder="EPSG:4326"
+										/>
+									</div>
+									<div>
+										<label
+											htmlFor="portfolio-scale"
+											className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+										>
+											Scale / Resolution
+										</label>
+										<input
+											id="portfolio-scale"
+											type="text"
+											value={portfolioForm.scale_resolution}
+											onChange={(e) =>
+												setPortfolioForm((prev) => ({
+													...prev,
+													scale_resolution: e.target.value,
+												}))
+											}
+											className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 bg-white dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
+											placeholder="1:500, 10cm GSD"
+										/>
+									</div>
+								</div>
+
+								<div>
+									<p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+										Software Used
+									</p>
+									<div className="flex flex-wrap gap-2">
+										{softwareToolOptions.map((tool) => {
+											const isSelected = portfolioForm.software_used.includes(tool);
+											return (
+												<button
+													key={tool}
+													type="button"
+													onClick={() =>
+														setPortfolioForm((prev) => ({
+															...prev,
+															software_used: isSelected
+																? prev.software_used.filter((item) => item !== tool)
+																: [...prev.software_used, tool],
+														})))
+													}
+													className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+														isSelected
+															? "bg-green-600 text-white"
+															: "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
+													}`}
+												>
+													{tool}
+												</button>
+											);
+										})}
+									</div>
+								</div>
+
+								<div>
+									<label
+										htmlFor="portfolio-file-url"
+										className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+									>
+										Supporting Link (optional)
+									</label>
+									<input
+										id="portfolio-file-url"
+										type="url"
+										value={portfolioForm.file_url}
+										onChange={(e) =>
+											setPortfolioForm((prev) => ({
+												...prev,
+												file_url: e.target.value,
+											}))
+										}
+										className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 bg-white dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
+										placeholder="https://example.com/report.pdf"
+									/>
+								</div>
+
+								<div>
+									<label
+										htmlFor="portfolio-map-embed"
+										className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+									>
+										Map Embed (iframe HTML)
+									</label>
+									<textarea
+										id="portfolio-map-embed"
+										rows={3}
+										value={portfolioForm.map_embed_html}
+										onChange={(e) =>
+											setPortfolioForm((prev) => ({
+												...prev,
+												map_embed_html: e.target.value,
+											}))
+										}
+										className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 bg-white dark:bg-gray-800 resize-none dark:text-white dark:placeholder-gray-400"
+										placeholder="<iframe src=...></iframe>"
+									/>
+									<p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+										Supported providers: ArcGIS, Mapbox, Google Maps, OSM, CARTO.
+									</p>
+								</div>
+
+								<div>
+									<label
+										htmlFor="portfolio-preview-image"
+										className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+									>
+										Preview Image <span className="text-red-500">*</span>
+									</label>
+									<input
+										id="portfolio-preview-image"
+										type="file"
+										accept="image/png,image/jpeg,image/webp"
+										onChange={(e) => {
+											setPreviewImageError("");
+											const file = e.target.files?.[0] || null;
+											if (!file) {
+												setPreviewImageFile(null);
+												return;
+											}
+											if (!PORTFOLIO_IMAGE_TYPES.includes(file.type)) {
+												setPreviewImageError(
+													"Only JPG, PNG, or WebP images are allowed.",
+												);
+												setPreviewImageFile(null);
+												return;
+											}
+											if (file.size > MAX_PORTFOLIO_IMAGE_SIZE) {
+												const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+												setPreviewImageError(
+													`Image is ${sizeMB}MB — max size is 5MB.`,
+												);
+												setPreviewImageFile(null);
+												return;
+											}
+											setPreviewImageFile(file);
+										}}
+										className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 bg-white dark:bg-gray-800 dark:text-white"
+									/>
+									{previewImageError && (
+										<p className="text-xs text-red-500 mt-1">{previewImageError}</p>
+									)}
+								</div>
+
+								<button
+									type="button"
+									disabled={portfolioSaving}
+									onClick={async () => {
+									setPortfolioSaving(true);
+									setPortfolioError("");
+									if (!portfolioForm.title.trim()) {
+										setPortfolioError("Project title is required.");
+										setPortfolioSaving(false);
+										return;
+									}
+									if (!previewImageFile) {
+										setPortfolioError("Preview image is required.");
+										setPortfolioSaving(false);
+										return;
+									}
+
+									try {
+										const cleanName = previewImageFile.name.replace(
+											/[^a-zA-Z0-9._-]/g,
+											"-",
+										);
+										const uploadPath = `${userId}/portfolio-preview-${Date.now()}-${cleanName}`;
+
+										const { error: uploadError } = await supabase.storage
+											.from("portfolio-images")
+											.upload(uploadPath, previewImageFile, {
+												contentType: previewImageFile.type,
+												upsert: false,
+											});
+
+										if (uploadError) {
+											throw uploadError;
+										}
+
+										const response = await fetch("/api/portfolio", {
+											method: "POST",
+											headers: { "Content-Type": "application/json" },
+											body: JSON.stringify({
+												title: portfolioForm.title,
+												description: portfolioForm.description,
+												project_type: portfolioForm.project_type,
+												data_sources: portfolioForm.data_sources,
+												crs: portfolioForm.crs,
+												scale_resolution: portfolioForm.scale_resolution,
+												software_used: portfolioForm.software_used,
+												file_url: portfolioForm.file_url,
+												preview_image_url: uploadPath,
+												map_embed_html: portfolioForm.map_embed_html,
+											}),
+										});
+
+										const result = await response.json().catch(() => ({}));
+										if (!response.ok) {
+											throw new Error(
+												result?.error || "Failed to save portfolio item",
+											);
+										}
+
+										const newItem = result.item;
+										const signedUrl = await buildSignedUrl(uploadPath);
+										setPortfolioItems((prev) => [newItem, ...prev]);
+										setPortfolioPreviewUrls((prev) => ({
+											...prev,
+											[newItem.id]: signedUrl,
+										}));
+
+										setPortfolioForm({
+											title: "",
+											description: "",
+											project_type: "",
+											data_sources: "",
+											crs: "",
+											scale_resolution: "",
+											software_used: [],
+											file_url: "",
+											map_embed_html: "",
+										});
+										setPreviewImageFile(null);
+									} catch (err: any) {
+										console.error("Portfolio save failed", err);
+										setPortfolioError(
+											err?.message || "Failed to save portfolio item.",
+										);
+									} finally {
+										setPortfolioSaving(false);
+									}
+								}}
+								className="px-5 py-2 rounded-xl bg-green-600 hover:bg-green-700 text-white font-semibold disabled:opacity-50"
+								>
+									{portfolioSaving ? "Saving..." : "Add Portfolio Item"}
+								</button>
+							</div>
+
+							<div>
+								<h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
+									Your Portfolio
+								</h4>
+								{portfolioLoading ? (
+									<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+										<CardSkeleton />
+										<CardSkeleton />
+									</div>
+								) : portfolioItems.length === 0 ? (
+									<p className="text-sm text-gray-500 dark:text-gray-400">
+										No portfolio items yet.
+									</p>
+								) : (
+									<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+										{portfolioItems.map((item) => (
+											<div
+												key={item.id}
+												className="border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden bg-white dark:bg-gray-900"
+											>
+												{portfolioPreviewUrls[item.id] && (
+													<img
+														src={portfolioPreviewUrls[item.id]}
+														alt={item.title || "Portfolio preview"}
+														className="w-full h-36 object-cover"
+													/>
+												)}
+												<div className="p-4 space-y-2">
+													<p className="font-semibold text-gray-900 dark:text-white text-sm">
+														{item.title || "Untitled project"}
+													</p>
+													<p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">
+														{item.description || "No description provided."}
+													</p>
+													<button
+														type="button"
+														className="text-xs text-red-600 hover:text-red-700"
+														onClick={async () => {
+															if (!confirm("Delete this portfolio item?")) return;
+															const response = await fetch(
+																`/api/portfolio/${item.id}`,
+																{ method: "DELETE" },
+															);
+															if (response.ok) {
+																setPortfolioItems((prev) =>
+																	prev.filter((entry) => entry.id !== item.id),
+																);
+																setPortfolioPreviewUrls((prev) => {
+																	const next = { ...prev };
+																	delete next[item.id];
+																	return next;
+																});
+															}
+														}}
+													>
+														Delete
+													</button>
+												</div>
+											</div>
+										))}
+									</div>
+								)}
+							</div>
+						</div>
+					)}
+
+					{step === 4 && (
 						<div className="rounded-xl border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 p-4">
 							<p className="font-semibold text-green-700 dark:text-green-400">
 								Ready to finish
@@ -585,7 +1104,7 @@ export default function ProfessionalOnboardingPage() {
 								Back
 							</button>
 						)}
-						{step < 3 ? (
+						{step < 4 ? (
 							<button
 								type="button"
 								onClick={handleContinue}

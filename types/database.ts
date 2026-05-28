@@ -104,8 +104,17 @@ export interface PortfolioItem {
 	id: string;
 	professional_id: string;
 	title: string | null;
+	description: string | null;
+	project_type: string | null;
+	data_sources: string | null;
+	crs: string | null;
+	scale_resolution: string | null;
+	software_used: string[];
 	file_url: string;
+	preview_image_url: string;
+	map_embed_html: string | null;
 	created_at: string;
+	updated_at: string;
 }
 
 export interface Notification {
