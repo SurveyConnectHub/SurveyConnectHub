@@ -1091,7 +1091,7 @@ export default function ProfessionalProfilePage() {
 														software_used: isSelected
 															? prev.software_used.filter((item) => item !== tool)
 															: [...prev.software_used, tool],
-													})))
+													}))
 												}
 												className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
 													isSelected
