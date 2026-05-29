@@ -63,9 +63,8 @@ export default function ProfessionalProfilePage() {
 	const [portfolioSaving, setPortfolioSaving] = useState(false);
 	const [previewImageFile, setPreviewImageFile] = useState<File | null>(null);
 	const [previewImageError, setPreviewImageError] = useState("");
-	const [portfolioDeleteCandidate, setPortfolioDeleteCandidate] = useState<
-		PortfolioItem | null
-	>(null);
+	const [portfolioDeleteCandidate, setPortfolioDeleteCandidate] =
+		useState<PortfolioItem | null>(null);
 	const [portfolioForm, setPortfolioForm] = useState({
 		title: "",
 		description: "",
@@ -114,43 +113,49 @@ export default function ProfessionalProfilePage() {
 		: null;
 	const isOwner = viewerId === id;
 
-	const buildSignedUrl = useCallback(async (path: string) => {
-		if (!path) return "";
-		if (path.startsWith("http")) return path;
-		const { data } = await supabase.storage
-			.from("portfolio-images")
-			.createSignedUrl(path, 60 * 60);
-		return data?.signedUrl || "";
-	}, [supabase]);
+	const buildSignedUrl = useCallback(
+		async (path: string) => {
+			if (!path) return "";
+			if (path.startsWith("http")) return path;
+			const { data } = await supabase.storage
+				.from("portfolio-images")
+				.createSignedUrl(path, 60 * 60);
+			return data?.signedUrl || "";
+		},
+		[supabase],
+	);
 
-	const loadPortfolioItems = useCallback(async (ownerId: string) => {
-		setPortfolioLoading(true);
-		setPortfolioError("");
-		try {
-			const { data, error: loadError } = await supabase
-				.from("portfolio_items")
-				.select("*")
-				.eq("professional_id", ownerId)
-				.order("created_at", { ascending: false });
+	const loadPortfolioItems = useCallback(
+		async (ownerId: string) => {
+			setPortfolioLoading(true);
+			setPortfolioError("");
+			try {
+				const { data, error: loadError } = await supabase
+					.from("portfolio_items")
+					.select("*")
+					.eq("professional_id", ownerId)
+					.order("created_at", { ascending: false });
 
-			if (loadError) throw loadError;
-			setPortfolioItems(data || []);
+				if (loadError) throw loadError;
+				setPortfolioItems(data || []);
 
-			const previews: Record<string, string> = {};
-			await Promise.all(
-				(data || []).map(async (item) => {
-					const url = await buildSignedUrl(item.preview_image_url);
-					if (url) previews[item.id] = url;
-				}),
-			);
-			setPortfolioPreviewUrls(previews);
-		} catch (err: any) {
-			console.error("Failed to load portfolio", err);
-			setPortfolioError("Failed to load portfolio items.");
-		} finally {
-			setPortfolioLoading(false);
-		}
-	}, [buildSignedUrl, supabase]);
+				const previews: Record<string, string> = {};
+				await Promise.all(
+					(data || []).map(async (item) => {
+						const url = await buildSignedUrl(item.preview_image_url);
+						if (url) previews[item.id] = url;
+					}),
+				);
+				setPortfolioPreviewUrls(previews);
+			} catch (err: any) {
+				console.error("Failed to load portfolio", err);
+				setPortfolioError("Failed to load portfolio items.");
+			} finally {
+				setPortfolioLoading(false);
+			}
+		},
+		[buildSignedUrl, supabase],
+	);
 
 	const openEditor = (item?: PortfolioItem) => {
 		if (item) {
@@ -401,7 +406,10 @@ export default function ProfessionalProfilePage() {
 		try {
 			let previewPath = portfolioForm.preview_image_url;
 			if (previewImageFile) {
-				const cleanName = previewImageFile.name.replace(/[^a-zA-Z0-9._-]/g, "-");
+				const cleanName = previewImageFile.name.replace(
+					/[^a-zA-Z0-9._-]/g,
+					"-",
+				);
 				previewPath = `${viewerId}/portfolio-preview-${Date.now()}-${cleanName}`;
 				const { error: uploadError } = await supabase.storage
 					.from("portfolio-images")
@@ -671,152 +679,155 @@ export default function ProfessionalProfilePage() {
 					</div>
 				)}
 
-						{prof && (
-							<div className="bg-white dark:bg-gray-900 rounded-2xl p-6 border border-gray-100 dark:border-gray-800 space-y-4">
-								<div className="flex items-center justify-between gap-4 flex-wrap">
-									<h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-										Portfolio Projects
-									</h3>
-									{isOwner && (
-										<button
-											type="button"
-											onClick={() => openEditor()}
-											className="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors"
-										>
-											<Plus className="w-4 h-4" />
-											Add Portfolio Item
-										</button>
-									)}
-								</div>
+				{prof && (
+					<div className="bg-white dark:bg-gray-900 rounded-2xl p-6 border border-gray-100 dark:border-gray-800 space-y-4">
+						<div className="flex items-center justify-between gap-4 flex-wrap">
+							<h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+								Portfolio Projects
+							</h3>
+							{isOwner && (
+								<button
+									type="button"
+									onClick={() => openEditor()}
+									className="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors"
+								>
+									<Plus className="w-4 h-4" />
+									Add Portfolio Item
+								</button>
+							)}
+						</div>
 
-								{portfolioError && (
-									<div className="rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm text-red-700 dark:text-red-400">
-										{portfolioError}
-									</div>
-								)}
-
-								{portfolioLoading ? (
-									<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-										<CardSkeleton />
-										<CardSkeleton />
-									</div>
-								) : portfolioItems.length === 0 ? (
-									<p className="text-sm text-gray-500 dark:text-gray-400">
-										No portfolio items yet.
-									</p>
-								) : (
-									<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-										{portfolioItems.map((item) => (
-											<div
-												key={item.id}
-												className="border border-gray-100 dark:border-gray-800 rounded-2xl overflow-hidden bg-white dark:bg-gray-900"
-											>
-												{portfolioPreviewUrls[item.id] && (
-													<div className="relative w-full h-44">
-														<Image
-															src={portfolioPreviewUrls[item.id]}
-															alt={item.title || "Portfolio preview"}
-															fill
-															sizes="(max-width: 768px) 100vw, 50vw"
-															className="object-cover"
-														/>
-													</div>
-												)}
-												<div className="p-4 space-y-3">
-													<div>
-														<p className="text-sm font-semibold text-gray-900 dark:text-white">
-															{item.title || "Untitled project"}
-														</p>
-														{item.description && (
-															<p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-																{item.description}
-															</p>
-														)}
-													</div>
-
-													<div className="flex flex-wrap gap-2">
-														{item.project_type && (
-															<span className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 px-2 py-1 rounded-full">
-																{item.project_type}
-															</span>
-														)}
-														{item.crs && (
-															<span className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 px-2 py-1 rounded-full">
-																{item.crs}
-															</span>
-														)}
-														{item.scale_resolution && (
-															<span className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 px-2 py-1 rounded-full">
-																{item.scale_resolution}
-															</span>
-														)}
-													</div>
-
-													{Array.isArray(item.software_used) && item.software_used.length > 0 && (
-														<div className="flex flex-wrap gap-2">
-															{item.software_used.map((tool) => (
-																<span
-																	key={tool}
-																	className="text-xs bg-green-600 text-white px-2 py-0.5 rounded-full"
-																>
-																	{tool}
-																</span>
-															))}
-														</div>
-													)}
-
-													{item.map_embed_html && (
-														<div className="rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
-															<div
-																className="w-full h-56"
-																dangerouslySetInnerHTML={{ __html: item.map_embed_html }}
-															/>
-														</div>
-													)}
-
-													{isOwner && (
-														<div className="flex items-center gap-3 text-sm pt-1">
-															<button
-																type="button"
-																onClick={() => openEditor(item)}
-																className="inline-flex items-center gap-1 text-green-600 hover:text-green-700"
-															>
-																<Pencil className="w-4 h-4" />
-																Edit
-															</button>
-															<button
-																type="button"
-																onClick={() => requestPortfolioDelete(item)}
-																className="inline-flex items-center gap-1 text-red-500 hover:text-red-600"
-															>
-																<Trash2 className="w-4 h-4" />
-																Delete
-															</button>
-														</div>
-													)}
-												</div>
-											</div>
-										))}
-									</div>
-								)}
+						{portfolioError && (
+							<div className="rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm text-red-700 dark:text-red-400">
+								{portfolioError}
 							</div>
 						)}
 
-						<ActionModal
-							open={Boolean(portfolioDeleteCandidate)}
-							onClose={() => setPortfolioDeleteCandidate(null)}
-							onConfirm={confirmPortfolioDelete}
-							variant="danger"
-							title="Delete this portfolio item?"
-							description={
-								portfolioDeleteCandidate?.title
-									? `"${portfolioDeleteCandidate.title}" will be removed from your portfolio.`
-									: "This item will be removed from your portfolio."
-							}
-							confirmLabel="Delete item"
-							cancelLabel="Keep item"
-							isProcessing={portfolioSaving}
-						/>
+						{portfolioLoading ? (
+							<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+								<CardSkeleton />
+								<CardSkeleton />
+							</div>
+						) : portfolioItems.length === 0 ? (
+							<p className="text-sm text-gray-500 dark:text-gray-400">
+								No portfolio items yet.
+							</p>
+						) : (
+							<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+								{portfolioItems.map((item) => (
+									<div
+										key={item.id}
+										className="border border-gray-100 dark:border-gray-800 rounded-2xl overflow-hidden bg-white dark:bg-gray-900"
+									>
+										{portfolioPreviewUrls[item.id] && (
+											<div className="relative w-full h-44">
+												<Image
+													src={portfolioPreviewUrls[item.id]}
+													alt={item.title || "Portfolio preview"}
+													fill
+													sizes="(max-width: 768px) 100vw, 50vw"
+													className="object-cover"
+												/>
+											</div>
+										)}
+										<div className="p-4 space-y-3">
+											<div>
+												<p className="text-sm font-semibold text-gray-900 dark:text-white">
+													{item.title || "Untitled project"}
+												</p>
+												{item.description && (
+													<p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+														{item.description}
+													</p>
+												)}
+											</div>
+
+											<div className="flex flex-wrap gap-2">
+												{item.project_type && (
+													<span className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 px-2 py-1 rounded-full">
+														{item.project_type}
+													</span>
+												)}
+												{item.crs && (
+													<span className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 px-2 py-1 rounded-full">
+														{item.crs}
+													</span>
+												)}
+												{item.scale_resolution && (
+													<span className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 px-2 py-1 rounded-full">
+														{item.scale_resolution}
+													</span>
+												)}
+											</div>
+
+											{Array.isArray(item.software_used) &&
+												item.software_used.length > 0 && (
+													<div className="flex flex-wrap gap-2">
+														{item.software_used.map((tool) => (
+															<span
+																key={tool}
+																className="text-xs bg-green-600 text-white px-2 py-0.5 rounded-full"
+															>
+																{tool}
+															</span>
+														))}
+													</div>
+												)}
+
+											{item.map_embed_html && (
+												<div className="rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+													<div
+														className="w-full h-56"
+														dangerouslySetInnerHTML={{
+															__html: item.map_embed_html,
+														}}
+													/>
+												</div>
+											)}
+
+											{isOwner && (
+												<div className="flex items-center gap-3 text-sm pt-1">
+													<button
+														type="button"
+														onClick={() => openEditor(item)}
+														className="inline-flex items-center gap-1 text-green-600 hover:text-green-700"
+													>
+														<Pencil className="w-4 h-4" />
+														Edit
+													</button>
+													<button
+														type="button"
+														onClick={() => requestPortfolioDelete(item)}
+														className="inline-flex items-center gap-1 text-red-500 hover:text-red-600"
+													>
+														<Trash2 className="w-4 h-4" />
+														Delete
+													</button>
+												</div>
+											)}
+										</div>
+									</div>
+								))}
+							</div>
+						)}
+					</div>
+				)}
+
+				<ActionModal
+					open={Boolean(portfolioDeleteCandidate)}
+					onClose={() => setPortfolioDeleteCandidate(null)}
+					onConfirm={confirmPortfolioDelete}
+					variant="danger"
+					title="Delete this portfolio item?"
+					description={
+						portfolioDeleteCandidate?.title
+							? `"${portfolioDeleteCandidate.title}" will be removed from your portfolio.`
+							: "This item will be removed from your portfolio."
+					}
+					confirmLabel="Delete item"
+					cancelLabel="Keep item"
+					isProcessing={portfolioSaving}
+				/>
 
 				{!prof && (
 					<div className="bg-white dark:bg-gray-900 rounded-2xl p-6 border border-gray-100 dark:border-gray-800">
@@ -1001,7 +1012,7 @@ export default function ProfessionalProfilePage() {
 						</div>
 
 						<div className="space-y-4">
-							</div>
+							<div>
 								<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
 									Project Title <span className="text-red-500">*</span>
 								</label>
@@ -1111,7 +1122,8 @@ export default function ProfessionalProfilePage() {
 								</p>
 								<div className="flex flex-wrap gap-2">
 									{softwareToolOptions.map((tool) => {
-										const isSelected = portfolioForm.software_used.includes(tool);
+										const isSelected =
+											portfolioForm.software_used.includes(tool);
 										return (
 											<button
 												key={tool}
@@ -1120,7 +1132,9 @@ export default function ProfessionalProfilePage() {
 													setPortfolioForm((prev) => ({
 														...prev,
 														software_used: isSelected
-															? prev.software_used.filter((item) => item !== tool)
+															? prev.software_used.filter(
+																	(item) => item !== tool,
+																)
 															: [...prev.software_used, tool],
 													}))
 												}
@@ -1183,11 +1197,15 @@ export default function ProfessionalProfilePage() {
 								<input
 									type="file"
 									accept="image/png,image/jpeg,image/webp"
-									onChange={(e) => handleImageChange(e.target.files?.[0] || null)}
+									onChange={(e) =>
+										handleImageChange(e.target.files?.[0] || null)
+									}
 									className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 bg-white dark:bg-gray-800 dark:text-white"
 								/>
 								{previewImageError && (
-									<p className="text-xs text-red-500 mt-1">{previewImageError}</p>
+									<p className="text-xs text-red-500 mt-1">
+										{previewImageError}
+									</p>
 								)}
 							</div>
 						</div>
