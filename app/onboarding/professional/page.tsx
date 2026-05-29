@@ -6,6 +6,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { CardSkeleton } from "@/components/ui/Skeleton";
 import Image from "next/image";
+import ActionModal from "@/components/ui/ActionModal";
 
 const professionOptions = [
 	"land_surveyor",
@@ -60,6 +61,9 @@ export default function ProfessionalOnboardingPage() {
 	const [portfolioPreviewUrls, setPortfolioPreviewUrls] = useState<
 		Record<string, string>
 	>({});
+	const [portfolioDeleteCandidate, setPortfolioDeleteCandidate] = useState<
+		any | null
+	>(null);
 
 	const [formData, setFormData] = useState({
 		full_name: "",
@@ -89,47 +93,70 @@ export default function ProfessionalOnboardingPage() {
 	const PORTFOLIO_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 	const MAX_PORTFOLIO_IMAGE_SIZE = 5 * 1024 * 1024;
 
-	const buildSignedUrl = useCallback(async (path: string) => {
-		if (!path) return "";
-		if (path.startsWith("http")) return path;
-		const { data } = await supabase.storage
-			.from("portfolio-images")
-			.createSignedUrl(path, 60 * 60);
-		return data?.signedUrl || "";
-	}, [supabase]);
+	const buildSignedUrl = useCallback(
+		async (path: string) => {
+			if (!path) return "";
+			if (path.startsWith("http")) return path;
+			const { data } = await supabase.storage
+				.from("portfolio-images")
+				.createSignedUrl(path, 60 * 60);
+			return data?.signedUrl || "";
+		},
+		[supabase],
+	);
 
-	const loadPortfolioItems = useCallback(async (ownerId: string) => {
-		setPortfolioLoading(true);
-		setPortfolioError("");
-		try {
-			const { data, error: portfolioLoadError } = await supabase
-				.from("portfolio_items")
-				.select("*")
-				.eq("professional_id", ownerId)
-				.order("created_at", { ascending: false });
+	const loadPortfolioItems = useCallback(
+		async (ownerId: string) => {
+			setPortfolioLoading(true);
+			setPortfolioError("");
+			try {
+				const { data, error: portfolioLoadError } = await supabase
+					.from("portfolio_items")
+					.select("*")
+					.eq("professional_id", ownerId)
+					.order("created_at", { ascending: false });
 
-			if (portfolioLoadError) {
-				throw portfolioLoadError;
+				if (portfolioLoadError) {
+					throw portfolioLoadError;
+				}
+
+				setPortfolioItems(data || []);
+				const previews: Record<string, string> = {};
+				await Promise.all(
+					(data || []).map(async (item: any) => {
+						const url = await buildSignedUrl(item.preview_image_url);
+						if (url) previews[item.id] = url;
+					}),
+				);
+				setPortfolioPreviewUrls(previews);
+				return data || [];
+			} catch (err: any) {
+				console.error("Failed to load portfolio items", err);
+				setPortfolioError("Failed to load portfolio items.");
+				return [];
+			} finally {
+				setPortfolioLoading(false);
 			}
+		},
+		[buildSignedUrl, supabase],
+	);
 
-			setPortfolioItems(data || []);
-			const previews: Record<string, string> = {};
-			await Promise.all(
-				(data || []).map(async (item: any) => {
-					const url = await buildSignedUrl(item.preview_image_url);
-					if (url) previews[item.id] = url;
-				}),
-			);
-			setPortfolioPreviewUrls(previews);
-			return data || [];
-		} catch (err: any) {
-			console.error("Failed to load portfolio items", err);
-			setPortfolioError("Failed to load portfolio items.");
-			return [];
-		} finally {
-			setPortfolioLoading(false);
+	const confirmPortfolioDelete = useCallback(async () => {
+		if (!portfolioDeleteCandidate) return;
+		const item = portfolioDeleteCandidate;
+		setPortfolioDeleteCandidate(null);
+		const response = await fetch(`/api/portfolio/${item.id}`, {
+			method: "DELETE",
+		});
+		if (response.ok) {
+			setPortfolioItems((prev) => prev.filter((entry) => entry.id !== item.id));
+			setPortfolioPreviewUrls((prev) => {
+				const next = { ...prev };
+				delete next[item.id];
+				return next;
+			});
 		}
-	}, [buildSignedUrl, supabase]);
+	}, [portfolioDeleteCandidate]);
 
 	useEffect(() => {
 		const init = async () => {
@@ -308,7 +335,8 @@ export default function ProfessionalOnboardingPage() {
 	};
 
 	const handleContinue = async () => {
-		const next = step === 1 ? "professional" : step === 2 ? "portfolio" : "complete";
+		const next =
+			step === 1 ? "professional" : step === 2 ? "portfolio" : "complete";
 		if (next === "complete") {
 			const items = await loadPortfolioItems(userId);
 			if (items.length === 0) {
@@ -805,7 +833,8 @@ export default function ProfessionalOnboardingPage() {
 									</p>
 									<div className="flex flex-wrap gap-2">
 										{softwareToolOptions.map((tool) => {
-											const isSelected = portfolioForm.software_used.includes(tool);
+											const isSelected =
+												portfolioForm.software_used.includes(tool);
 											return (
 												<button
 													key={tool}
@@ -814,7 +843,9 @@ export default function ProfessionalOnboardingPage() {
 														setPortfolioForm((prev) => ({
 															...prev,
 															software_used: isSelected
-																? prev.software_used.filter((item) => item !== tool)
+																? prev.software_used.filter(
+																		(item) => item !== tool,
+																	)
 																: [...prev.software_used, tool],
 														}))
 													}
@@ -874,7 +905,8 @@ export default function ProfessionalOnboardingPage() {
 										placeholder="<iframe src=...></iframe>"
 									/>
 									<p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-										Supported providers: ArcGIS, Mapbox, Google Maps, OSM, CARTO.
+										Supported providers: ArcGIS, Mapbox, Google Maps, OSM,
+										CARTO.
 									</p>
 								</div>
 
@@ -916,7 +948,9 @@ export default function ProfessionalOnboardingPage() {
 										className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 bg-white dark:bg-gray-800 dark:text-white"
 									/>
 									{previewImageError && (
-										<p className="text-xs text-red-500 mt-1">{previewImageError}</p>
+										<p className="text-xs text-red-500 mt-1">
+											{previewImageError}
+										</p>
 									)}
 								</div>
 
@@ -924,91 +958,91 @@ export default function ProfessionalOnboardingPage() {
 									type="button"
 									disabled={portfolioSaving}
 									onClick={async () => {
-									setPortfolioSaving(true);
-									setPortfolioError("");
-									if (!portfolioForm.title.trim()) {
-										setPortfolioError("Project title is required.");
-										setPortfolioSaving(false);
-										return;
-									}
-									if (!previewImageFile) {
-										setPortfolioError("Preview image is required.");
-										setPortfolioSaving(false);
-										return;
-									}
+										setPortfolioSaving(true);
+										setPortfolioError("");
+										if (!portfolioForm.title.trim()) {
+											setPortfolioError("Project title is required.");
+											setPortfolioSaving(false);
+											return;
+										}
+										if (!previewImageFile) {
+											setPortfolioError("Preview image is required.");
+											setPortfolioSaving(false);
+											return;
+										}
 
-									try {
-										const cleanName = previewImageFile.name.replace(
-											/[^a-zA-Z0-9._-]/g,
-											"-",
-										);
-										const uploadPath = `${userId}/portfolio-preview-${Date.now()}-${cleanName}`;
+										try {
+											const cleanName = previewImageFile.name.replace(
+												/[^a-zA-Z0-9._-]/g,
+												"-",
+											);
+											const uploadPath = `${userId}/portfolio-preview-${Date.now()}-${cleanName}`;
 
-										const { error: uploadError } = await supabase.storage
-											.from("portfolio-images")
-											.upload(uploadPath, previewImageFile, {
-												contentType: previewImageFile.type,
-												upsert: false,
+											const { error: uploadError } = await supabase.storage
+												.from("portfolio-images")
+												.upload(uploadPath, previewImageFile, {
+													contentType: previewImageFile.type,
+													upsert: false,
+												});
+
+											if (uploadError) {
+												throw uploadError;
+											}
+
+											const response = await fetch("/api/portfolio", {
+												method: "POST",
+												headers: { "Content-Type": "application/json" },
+												body: JSON.stringify({
+													title: portfolioForm.title,
+													description: portfolioForm.description,
+													project_type: portfolioForm.project_type,
+													data_sources: portfolioForm.data_sources,
+													crs: portfolioForm.crs,
+													scale_resolution: portfolioForm.scale_resolution,
+													software_used: portfolioForm.software_used,
+													file_url: portfolioForm.file_url,
+													preview_image_url: uploadPath,
+													map_embed_html: portfolioForm.map_embed_html,
+												}),
 											});
 
-										if (uploadError) {
-											throw uploadError;
-										}
+											const result = await response.json().catch(() => ({}));
+											if (!response.ok) {
+												throw new Error(
+													result?.error || "Failed to save portfolio item",
+												);
+											}
 
-										const response = await fetch("/api/portfolio", {
-											method: "POST",
-											headers: { "Content-Type": "application/json" },
-											body: JSON.stringify({
-												title: portfolioForm.title,
-												description: portfolioForm.description,
-												project_type: portfolioForm.project_type,
-												data_sources: portfolioForm.data_sources,
-												crs: portfolioForm.crs,
-												scale_resolution: portfolioForm.scale_resolution,
-												software_used: portfolioForm.software_used,
-												file_url: portfolioForm.file_url,
-												preview_image_url: uploadPath,
-												map_embed_html: portfolioForm.map_embed_html,
-											}),
-										});
+											const newItem = result.item;
+											const signedUrl = await buildSignedUrl(uploadPath);
+											setPortfolioItems((prev) => [newItem, ...prev]);
+											setPortfolioPreviewUrls((prev) => ({
+												...prev,
+												[newItem.id]: signedUrl,
+											}));
 
-										const result = await response.json().catch(() => ({}));
-										if (!response.ok) {
-											throw new Error(
-												result?.error || "Failed to save portfolio item",
+											setPortfolioForm({
+												title: "",
+												description: "",
+												project_type: "",
+												data_sources: "",
+												crs: "",
+												scale_resolution: "",
+												software_used: [],
+												file_url: "",
+												map_embed_html: "",
+											});
+											setPreviewImageFile(null);
+										} catch (err: any) {
+											console.error("Portfolio save failed", err);
+											setPortfolioError(
+												err?.message || "Failed to save portfolio item.",
 											);
+										} finally {
+											setPortfolioSaving(false);
 										}
-
-										const newItem = result.item;
-										const signedUrl = await buildSignedUrl(uploadPath);
-										setPortfolioItems((prev) => [newItem, ...prev]);
-										setPortfolioPreviewUrls((prev) => ({
-											...prev,
-											[newItem.id]: signedUrl,
-										}));
-
-										setPortfolioForm({
-											title: "",
-											description: "",
-											project_type: "",
-											data_sources: "",
-											crs: "",
-											scale_resolution: "",
-											software_used: [],
-											file_url: "",
-											map_embed_html: "",
-										});
-										setPreviewImageFile(null);
-									} catch (err: any) {
-										console.error("Portfolio save failed", err);
-										setPortfolioError(
-											err?.message || "Failed to save portfolio item.",
-										);
-									} finally {
-										setPortfolioSaving(false);
-									}
-								}}
-								className="px-5 py-2 rounded-xl bg-green-600 hover:bg-green-700 text-white font-semibold disabled:opacity-50"
+									}}
+									className="px-5 py-2 rounded-xl bg-green-600 hover:bg-green-700 text-white font-semibold disabled:opacity-50"
 								>
 									{portfolioSaving ? "Saving..." : "Add Portfolio Item"}
 								</button>
@@ -1055,23 +1089,7 @@ export default function ProfessionalOnboardingPage() {
 													<button
 														type="button"
 														className="text-xs text-red-600 hover:text-red-700"
-														onClick={async () => {
-															if (!confirm("Delete this portfolio item?")) return;
-															const response = await fetch(
-																`/api/portfolio/${item.id}`,
-																{ method: "DELETE" },
-															);
-															if (response.ok) {
-																setPortfolioItems((prev) =>
-																	prev.filter((entry) => entry.id !== item.id),
-																);
-																setPortfolioPreviewUrls((prev) => {
-																	const next = { ...prev };
-																	delete next[item.id];
-																	return next;
-																});
-															}
-														}}
+														onClick={() => setPortfolioDeleteCandidate(item)}
 													>
 														Delete
 													</button>
@@ -1130,6 +1148,21 @@ export default function ProfessionalOnboardingPage() {
 						)}
 					</div>
 				</div>
+
+				<ActionModal
+					open={Boolean(portfolioDeleteCandidate)}
+					onClose={() => setPortfolioDeleteCandidate(null)}
+					onConfirm={confirmPortfolioDelete}
+					variant="danger"
+					title="Delete this portfolio item?"
+					description={
+						portfolioDeleteCandidate?.title
+							? `"${portfolioDeleteCandidate.title}" will be removed from your portfolio.`
+							: "This item will be removed from your portfolio."
+					}
+					confirmLabel="Delete item"
+					cancelLabel="Keep item"
+				/>
 			</div>
 		</div>
 	);

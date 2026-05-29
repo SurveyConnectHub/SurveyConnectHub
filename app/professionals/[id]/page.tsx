@@ -7,6 +7,7 @@ import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import { ProfileSkeleton, CardSkeleton } from "@/components/ui/Skeleton";
 import BackButton from "@/components/ui/BackButton";
+import ActionModal from "@/components/ui/ActionModal";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import type { PortfolioItem } from "@/types/database";
 
@@ -62,6 +63,9 @@ export default function ProfessionalProfilePage() {
 	const [portfolioSaving, setPortfolioSaving] = useState(false);
 	const [previewImageFile, setPreviewImageFile] = useState<File | null>(null);
 	const [previewImageError, setPreviewImageError] = useState("");
+	const [portfolioDeleteCandidate, setPortfolioDeleteCandidate] = useState<
+		PortfolioItem | null
+	>(null);
 	const [portfolioForm, setPortfolioForm] = useState({
 		title: "",
 		description: "",
@@ -459,8 +463,14 @@ export default function ProfessionalProfilePage() {
 		}
 	};
 
-	const handlePortfolioDelete = async (item: PortfolioItem) => {
-		if (!confirm("Delete this portfolio item?")) return;
+	const requestPortfolioDelete = (item: PortfolioItem) => {
+		setPortfolioDeleteCandidate(item);
+	};
+
+	const confirmPortfolioDelete = async () => {
+		if (!portfolioDeleteCandidate) return;
+		const item = portfolioDeleteCandidate;
+		setPortfolioDeleteCandidate(null);
 		setPortfolioSaving(true);
 		setPortfolioError("");
 		try {
@@ -776,7 +786,7 @@ export default function ProfessionalProfilePage() {
 															</button>
 															<button
 																type="button"
-																onClick={() => handlePortfolioDelete(item)}
+																onClick={() => requestPortfolioDelete(item)}
 																className="inline-flex items-center gap-1 text-red-500 hover:text-red-600"
 															>
 																<Trash2 className="w-4 h-4" />
@@ -791,6 +801,22 @@ export default function ProfessionalProfilePage() {
 								)}
 							</div>
 						)}
+
+						<ActionModal
+							open={Boolean(portfolioDeleteCandidate)}
+							onClose={() => setPortfolioDeleteCandidate(null)}
+							onConfirm={confirmPortfolioDelete}
+							variant="danger"
+							title="Delete this portfolio item?"
+							description={
+								portfolioDeleteCandidate?.title
+									? `"${portfolioDeleteCandidate.title}" will be removed from your portfolio.`
+									: "This item will be removed from your portfolio."
+							}
+							confirmLabel="Delete item"
+							cancelLabel="Keep item"
+							isProcessing={portfolioSaving}
+						/>
 
 				{!prof && (
 					<div className="bg-white dark:bg-gray-900 rounded-2xl p-6 border border-gray-100 dark:border-gray-800">
@@ -975,7 +1001,7 @@ export default function ProfessionalProfilePage() {
 						</div>
 
 						<div className="space-y-4">
-							<div>
+							</div>
 								<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
 									Project Title <span className="text-red-500">*</span>
 								</label>

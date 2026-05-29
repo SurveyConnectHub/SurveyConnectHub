@@ -347,9 +347,8 @@ export default function PortfolioManagerPage() {
 					>
 						<Plus className="w-4 h-4" />
 						Add Portfolio Item
-										<button
+					</button>
 				</div>
-											onClick={() => requestDelete(item)}
 				{error && (
 					<div className="rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm text-red-700 dark:text-red-400 mb-6">
 						{error}
@@ -394,23 +393,7 @@ export default function PortfolioManagerPage() {
 									</div>
 								)}
 								<div className="p-5 space-y-3">
-									</div>
-
-									<ActionModal
-										open={Boolean(deleteCandidate)}
-										onClose={() => setDeleteCandidate(null)}
-										onConfirm={confirmDelete}
-										variant="danger"
-										title="Delete this portfolio item?"
-										description={
-											deleteCandidate?.title
-												? `"${deleteCandidate.title}" will be removed from your portfolio.`
-												: "This item will be removed from your portfolio."
-										}
-										confirmLabel="Delete item"
-										cancelLabel="Keep item"
-										isProcessing={saving}
-									/>
+									<div>
 										<h3 className="text-lg font-semibold text-gray-900 dark:text-white">
 											{item.title || "Untitled project"}
 										</h3>
@@ -446,7 +429,7 @@ export default function PortfolioManagerPage() {
 										</button>
 										<button
 											type="button"
-											onClick={() => handleDelete(item)}
+											onClick={() => requestDelete(item)}
 											className="inline-flex items-center gap-1 text-red-500 hover:text-red-600"
 										>
 											<Trash2 className="w-4 h-4" />
@@ -465,6 +448,22 @@ export default function PortfolioManagerPage() {
 					</div>
 				)}
 			</div>
+
+			<ActionModal
+				open={Boolean(deleteCandidate)}
+				onClose={() => setDeleteCandidate(null)}
+				onConfirm={confirmDelete}
+				variant="danger"
+				title="Delete this portfolio item?"
+				description={
+					deleteCandidate?.title
+						? `"${deleteCandidate.title}" will be removed from your portfolio.`
+						: "This item will be removed from your portfolio."
+				}
+				confirmLabel="Delete item"
+				cancelLabel="Keep item"
+				isProcessing={saving}
+			/>
 
 			{editorOpen && (
 				<div className="fixed inset-0 bg-black/50 flex items-center justify-center px-4 z-50">
