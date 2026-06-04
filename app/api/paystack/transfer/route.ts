@@ -95,39 +95,15 @@ export async function POST(request: NextRequest) {
 
 		const paystackSecretKey = process.env.PAYSTACK_SECRET_KEY;
 		if (!paystackSecretKey) {
-			console.error("PAYSTACK_SECRET_KEY is not set");
 			return NextResponse.json(
 				{ error: "Payment service not configured" },
 				{ status: 500 },
 			);
 		}
 
-		const releaseTimestamp = new Date().toISOString();
-		const { data: releaseLockRows, error: releaseLockError } = await supabase
-			.from("contracts")
-			.update({ payment_released_at: releaseTimestamp })
-			.eq("id", contractId)
-			.is("payment_released_at", null)
-			.select("id");
-
-		if (releaseLockError) {
-			console.error("Failed to acquire release lock:", releaseLockError);
-			return NextResponse.json(
-				{ error: "Could not release payment" },
-				{ status: 500 },
-			);
-		}
-
-		if (!releaseLockRows || releaseLockRows.length === 0) {
-			return NextResponse.json(
-				{ error: "Payment already released" },
-				{ status: 409 },
-			);
-		}
-
 		let recipientCode = professional.paystack_recipient_code;
 
-		// Create transfer recipient if not exists (after lock acquired)
+		// Create transfer recipient if not exists
 		if (!recipientCode) {
 			const recipientResponse = await fetch(
 				"https://api.paystack.co/transferrecipient",
@@ -148,16 +124,6 @@ export async function POST(request: NextRequest) {
 			);
 
 			if (!recipientResponse.ok) {
-				const errorText = await recipientResponse.text().catch(() => "");
-				await supabase
-					.from("contracts")
-					.update({ payment_released_at: null })
-					.eq("id", contractId);
-				console.error("Recipient creation failed:", {
-					contractId,
-					httpStatus: recipientResponse.status,
-					errorText,
-				});
 				return NextResponse.json(
 					{ error: "Failed to create transfer recipient" },
 					{ status: 502 },
@@ -167,10 +133,6 @@ export async function POST(request: NextRequest) {
 			const recipientData = await recipientResponse.json();
 
 			if (!recipientData.status) {
-				await supabase
-					.from("contracts")
-					.update({ payment_released_at: null })
-					.eq("id", contractId);
 				return NextResponse.json(
 					{ error: "Failed to create transfer recipient" },
 					{ status: 500 },
@@ -179,14 +141,14 @@ export async function POST(request: NextRequest) {
 
 			recipientCode = recipientData.data.recipient_code;
 
-			// Save recipient code for future transfers
 			await supabase
 				.from("profiles")
 				.update({ paystack_recipient_code: recipientCode })
 				.eq("id", contract.professional_id);
 		}
 
-		// Initiate transfer
+		// Initiate transfer with a unique reference for idempotency
+		const transferReference = `SC-REL-${contractId}-${Date.now()}`;
 		const transferResponse = await fetch("https://api.paystack.co/transfer", {
 			method: "POST",
 			headers: {
@@ -197,24 +159,14 @@ export async function POST(request: NextRequest) {
 				source: "balance",
 				amount: professionalAmountKobo,
 				recipient: recipientCode,
+				reference: transferReference,
 				reason: `Payment for ${contract.jobs?.title ?? contract.job_id} on SurveyConnectHub`,
 			}),
 		});
 
 		if (!transferResponse.ok) {
-			const errorText = await transferResponse.text().catch(() => "");
-			await supabase
-				.from("contracts")
-				.update({ payment_released_at: null })
-				.eq("id", contractId);
 			return NextResponse.json(
-				{
-					error: "Transfer failed",
-					debug: {
-						httpStatus: transferResponse.status,
-						errorText,
-					},
-				},
+				{ error: "Transfer failed" },
 				{ status: 502 },
 			);
 		}
@@ -222,34 +174,41 @@ export async function POST(request: NextRequest) {
 		const transferData = await transferResponse.json();
 
 		if (!transferData.status) {
-			await supabase
-				.from("contracts")
-				.update({ payment_released_at: null })
-				.eq("id", contractId);
 			return NextResponse.json({ error: "Transfer failed" }, { status: 500 });
 		}
 
-		const { error: feeUpdateError } = await supabase
+		// Only mark as released after Paystack confirms the transfer
+		const releaseTimestamp = new Date().toISOString();
+		const { data: releasedRows, error: releaseError } = await supabase
 			.from("contracts")
 			.update({
+				payment_released_at: releaseTimestamp,
 				professional_receives: professionalReceivesUsd,
 				platform_fee: platformFeeUsd,
 			})
-			.eq("id", contractId);
+			.eq("id", contractId)
+			.is("payment_released_at", null)
+			.select("id");
 
-		if (feeUpdateError) {
-			console.error("Failed to record transfer fees:", {
-				contractId,
-				professionalReceivesUsd,
-				platformFeeUsd,
-				transferId: transferData?.data?.id,
-				transferStatus: transferData?.data?.status,
-				error: feeUpdateError,
-			});
+		if (releaseError) {
+			// Payment was sent but we failed to record it — admin must reconcile
+			return NextResponse.json(
+				{ error: "Payment sent but could not be recorded" },
+				{ status: 500 },
+			);
 		}
 
+		if (!releasedRows || releasedRows.length === 0) {
+			// Race condition: another request already completed this
+			return NextResponse.json(
+				{ error: "Payment already released" },
+				{ status: 409 },
+			);
+		}
+
+		// Notifications — best effort, non-critical
 		if (professional?.email && professional?.full_name) {
-			await sendNotificationEmail({
+			sendNotificationEmail({
 				supabase,
 				userId: user.id,
 				payload: {
@@ -262,14 +221,12 @@ export async function POST(request: NextRequest) {
 						contractId,
 					},
 				},
-			}).catch((error) => {
-				console.error("Failed to send payment email:", error);
-			});
+			}).catch(() => {});
 		}
 
 		try {
 			const serviceClient = createServiceClient();
-			const { error: notificationError } = await serviceClient
+			await serviceClient
 				.from("notifications")
 				.insert({
 					user_id: contract.professional_id,
@@ -281,15 +238,8 @@ export async function POST(request: NextRequest) {
 					link: "/dashboard/professional/contracts",
 					is_read: false,
 				});
-
-			if (notificationError) {
-				console.error(
-					"Failed to insert payment notification:",
-					notificationError,
-				);
-			}
-		} catch (error) {
-			console.error("Failed to create notification client:", error);
+		} catch {
+			// Non-critical
 		}
 
 		return NextResponse.json({
@@ -298,7 +248,6 @@ export async function POST(request: NextRequest) {
 			amount: professionalAmountNgn,
 		});
 	} catch (error) {
-		console.error("Transfer error:", error);
 		return NextResponse.json(
 			{ error: "Internal server error" },
 			{ status: 500 },

@@ -102,8 +102,8 @@ export async function POST(request: NextRequest) {
     }
 
     if (event.event === "transfer.success") {
-      const { amount, reference } = event.data || {};
-      console.log(`Transfer success: ${reference}, amount: ${amount}`);
+      const { reference, amount, recipient } = event.data || {};
+      // Payment was successfully transferred — status is final
       return NextResponse.json({ received: true });
     }
 
@@ -112,42 +112,43 @@ export async function POST(request: NextRequest) {
       event.event === "transfer.reversed"
     ) {
       const { reference } = event.data || {};
-      console.error(`Transfer failed/reversed: ${reference}`);
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "");
-      if (!appUrl) {
-        console.error("NEXT_PUBLIC_APP_URL is not configured");
-        return NextResponse.json({ received: true });
+      const supabase = await createClient();
+
+      // Try to find the contract by reference prefix (SC-REL-{contractId}-{timestamp})
+      if (reference && reference.startsWith("SC-REL-")) {
+        const contractId = reference.split("-").slice(2, -1).join("-");
+        if (contractId) {
+          await supabase
+            .from("contracts")
+            .update({ payment_released_at: null })
+            .eq("id", contractId)
+            .is("payment_reference", null);
+        }
       }
 
-      try {
-        const alertHeaders: Record<string, string> = {
-          "Content-Type": "application/json",
-        };
-        if (process.env.ADMIN_ALERT_SECRET) {
-          alertHeaders["x-admin-alert-secret"] =
-            process.env.ADMIN_ALERT_SECRET;
-        }
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "");
+      if (appUrl) {
+        try {
+          const alertHeaders: Record<string, string> = {
+            "Content-Type": "application/json",
+          };
+          if (process.env.ADMIN_ALERT_SECRET) {
+            alertHeaders["x-admin-alert-secret"] =
+              process.env.ADMIN_ALERT_SECRET;
+          }
 
-        const alertResponse = await fetch(`${appUrl}/api/admin/alerts`, {
-          method: "POST",
-          headers: alertHeaders,
-          body: JSON.stringify({
-            type: "transfer_failed",
-            reference,
-            message: "Paystack transfer failed or was reversed.",
-          }),
-        });
-
-        if (!alertResponse.ok) {
-          const errorText = await alertResponse.text().catch(() => "");
-          console.error("Admin alert failed:", {
-            reference,
-            status: alertResponse.status,
-            errorText,
-          });
+          await fetch(`${appUrl}/api/admin/alerts`, {
+            method: "POST",
+            headers: alertHeaders,
+            body: JSON.stringify({
+              type: "transfer_failed",
+              reference,
+              message: "Paystack transfer failed or was reversed.",
+            }),
+          }).catch(() => {});
+        } catch {
+          // Non-critical
         }
-      } catch (error) {
-        console.error("Admin alert request failed:", error);
       }
       return NextResponse.json({ received: true });
     }

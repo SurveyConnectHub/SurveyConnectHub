@@ -60,14 +60,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
-    // Fetch exchange rate USD → NGN
-    const exchangeResponse = await fetch(
-      `https://v6.exchangerate-api.com/v6/${process.env.EXCHANGE_RATE_API_KEY}/pair/USD/NGN`,
-    );
-    const exchangeData = await exchangeResponse.json();
+    // Fetch exchange rate USD → NGN with timeout
+    const exchangeController = new AbortController();
+    const exchangeTimeout = setTimeout(() => exchangeController.abort(), 8000);
+
+    let exchangeData: { conversion_rate?: number; result?: string };
+    try {
+      const exchangeResponse = await fetch(
+        `https://v6.exchangerate-api.com/v6/${process.env.EXCHANGE_RATE_API_KEY}/pair/USD/NGN`,
+        { signal: exchangeController.signal },
+      );
+      exchangeData = await exchangeResponse.json();
+    } catch {
+      clearTimeout(exchangeTimeout);
+      return NextResponse.json(
+        { error: "Could not fetch exchange rate" },
+        { status: 500 },
+      );
+    } finally {
+      clearTimeout(exchangeTimeout);
+    }
 
     if (!exchangeData.conversion_rate) {
-      console.error("Exchange rate fetch failed:", exchangeData);
       return NextResponse.json(
         { error: "Could not fetch exchange rate" },
         { status: 500 },
@@ -86,7 +100,6 @@ export async function POST(request: NextRequest) {
 
     const paystackSecretKey = process.env.PAYSTACK_SECRET_KEY;
     if (!paystackSecretKey) {
-      console.error("PAYSTACK_SECRET_KEY is not set");
       return NextResponse.json(
         { error: "Payment service not configured" },
         { status: 500 },
@@ -126,18 +139,6 @@ export async function POST(request: NextRequest) {
       callback_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/paystack/verify`,
     };
 
-    const emailDomain = email.split("@")[1] || "unknown";
-    console.log("Initializing Paystack payment:", {
-      contractId,
-      agreedBudget,
-      clientTotal,
-      exchangeRate,
-      ngnAmount,
-      amountInKobo,
-      reference,
-      emailDomain,
-    });
-
     const paystackResponse = await fetch(
       "https://api.paystack.co/transaction/initialize",
       {
@@ -153,40 +154,28 @@ export async function POST(request: NextRequest) {
     const paystackData = await paystackResponse.json();
 
     if (!paystackData.status) {
-      console.error("Paystack initialization failed:", {
-        httpStatus: paystackResponse.status,
-        paystackMessage: paystackData.message,
-        fullResponse: paystackData,
-      });
       return NextResponse.json(
         {
           error: paystackData.message || "Failed to initialize payment",
-          debug: {
-            paystackMessage: paystackData.message,
-            httpStatus: paystackResponse.status,
-          },
         },
         { status: 500 },
       );
     }
 
+    // Persist exchange data only after Paystack init succeeds
     const { error: amountPersistError } = await supabase
       .from("contracts")
       .update({ ngn_amount_paid: ngnAmount, exchange_rate_used: exchangeRate })
       .eq("id", contractId);
 
     if (amountPersistError) {
-      console.error("Failed to persist exchange data:", amountPersistError);
+      // Rollback is not possible here since Paystack already initialized;
+      // the user can retry and the payment will be linked via metadata
       return NextResponse.json(
         { error: "Could not prepare payment" },
         { status: 500 },
       );
     }
-
-    console.log(
-      "Paystack initialization successful:",
-      paystackData.data?.reference,
-    );
 
     return NextResponse.json({
       authorizationUrl: paystackData.data.authorization_url,

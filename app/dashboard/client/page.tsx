@@ -147,8 +147,10 @@ export default function ClientDashboard() {
 					.eq("client_id", user.id)
 					.in("status", ["active", "completed"]);
 
+				let channel: ReturnType<typeof supabase.channel> | null = null;
+
 				if (activeContracts && activeContracts.length > 0) {
-					const channel = supabase
+					channel = supabase
 						.channel("client-unread-messages")
 						.on(
 							"postgres_changes",
@@ -164,11 +166,11 @@ export default function ClientDashboard() {
 							},
 						)
 						.subscribe();
-
-					return () => {
-						supabase.removeChannel(channel);
-					};
 				}
+
+				return () => {
+					if (channel) supabase.removeChannel(channel);
+				};
 			} catch (error) {
 				console.error("Failed to load client dashboard", error);
 				router.push("/login");

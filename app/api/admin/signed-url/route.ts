@@ -41,12 +41,14 @@ export async function POST(request: NextRequest) {
     storagePath = pathValue.slice(markerIndex + marker.length);
   }
 
-  const normalizedPath = path.posix.normalize(storagePath);
+  const normalizedPath = path.posix.normalize(storagePath).replace(/\\/g, "/");
+
   if (
-    normalizedPath.startsWith("../") ||
+    normalizedPath.startsWith("..") ||
     normalizedPath.includes("/../") ||
     normalizedPath.startsWith("/") ||
-    normalizedPath === ".."
+    normalizedPath === ".." ||
+    normalizedPath === "."
   ) {
     return NextResponse.json({ error: "Invalid path" }, { status: 400 });
   }

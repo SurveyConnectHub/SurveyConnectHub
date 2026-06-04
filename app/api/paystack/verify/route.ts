@@ -87,7 +87,7 @@ export async function GET(request: NextRequest) {
 		const { data: contract } = await supabase
 			.from("contracts")
 			.select(
-				"job_id, application_id, status, ngn_amount_paid, client_id, professional_id",
+				"job_id, application_id, status, ngn_amount_paid, client_id, professional_id, jobs(title)",
 			)
 			.eq("id", contractId)
 			.single();
@@ -110,7 +110,6 @@ export async function GET(request: NextRequest) {
 				contractId,
 				expectedAmountKobo,
 				paidAmountKobo,
-				currency: paystackData.data.currency,
 			});
 			return NextResponse.redirect(
 				new URL("/dashboard/client?payment=failed", request.url),
@@ -118,7 +117,7 @@ export async function GET(request: NextRequest) {
 		}
 
 		if (contract.status === "pending") {
-			// 1. Activate contract only once when still pending and without a payment reference.
+			// Atomically activate contract — this is the lock
 			const { data: activatedRows } = await supabase
 				.from("contracts")
 				.update({
@@ -132,31 +131,45 @@ export async function GET(request: NextRequest) {
 				.select("id");
 
 			if (activatedRows && activatedRows.length > 0) {
-				// 2. Mark application as accepted
-				await supabase
+				// Multi-step writes with manual rollback on failure
+				const { error: acceptError } = await supabase
 					.from("job_applications")
 					.update({ status: "accepted" })
 					.eq("id", contract.application_id);
 
-				// 3. Reject all other applications
-				await supabase
+				if (acceptError) {
+					await supabase.from("contracts").update({ status: "pending", start_date: null, payment_reference: null }).eq("id", contractId);
+					return NextResponse.redirect(new URL("/dashboard/client?payment=failed", request.url));
+				}
+
+				const { error: rejectError } = await supabase
 					.from("job_applications")
 					.update({ status: "rejected" })
 					.eq("job_id", contract.job_id)
 					.neq("id", contract.application_id);
 
-				// 4. Update job to in_progress
-				await supabase
+				if (rejectError) {
+					await supabase.from("contracts").update({ status: "pending", start_date: null, payment_reference: null }).eq("id", contractId);
+					await supabase.from("job_applications").update({ status: "pending" }).eq("id", contract.application_id);
+					return NextResponse.redirect(new URL("/dashboard/client?payment=failed", request.url));
+				}
+
+				const { error: jobError } = await supabase
 					.from("jobs")
 					.update({ status: "in_progress" })
 					.eq("id", contract.job_id);
 
-				const { data: jobRecord } = await supabase
-					.from("jobs")
-					.select("title")
-					.eq("id", contract.job_id)
-					.single();
-				const jobTitle = jobRecord?.title ?? "your job";
+				if (jobError) {
+					await supabase.from("contracts").update({ status: "pending", start_date: null, payment_reference: null }).eq("id", contractId);
+					await supabase.from("job_applications").update({ status: "pending" }).eq("id", contract.application_id);
+					await supabase.from("job_applications").update({ status: "pending" }).eq("job_id", contract.job_id).neq("id", contract.application_id);
+					return NextResponse.redirect(new URL("/dashboard/client?payment=failed", request.url));
+				}
+
+				// Notifications — best effort, non-critical
+				const jobData = Array.isArray(contract.jobs) ? contract.jobs[0] : contract.jobs;
+				const jobTitle = jobData?.title ?? "your job";
+
 				const { data: clientProfile } = await supabase
 					.from("profiles")
 					.select("full_name, email")
@@ -169,7 +182,7 @@ export async function GET(request: NextRequest) {
 					.single();
 
 				if (clientProfile?.email && clientProfile?.full_name) {
-					await sendNotificationEmail({
+					sendNotificationEmail({
 						supabase,
 						userId: user.id,
 						payload: {
@@ -183,16 +196,11 @@ export async function GET(request: NextRequest) {
 								contractId,
 							},
 						},
-					}).catch((error) => {
-						console.error(
-							"Failed to send contract activation email (client):",
-							error,
-						);
-					});
+					}).catch(() => {});
 				}
 
 				if (professionalProfile?.email && professionalProfile?.full_name) {
-					await sendNotificationEmail({
+					sendNotificationEmail({
 						supabase,
 						userId: user.id,
 						payload: {
@@ -206,17 +214,12 @@ export async function GET(request: NextRequest) {
 								contractId,
 							},
 						},
-					}).catch((error) => {
-						console.error(
-							"Failed to send contract activation email (professional):",
-							error,
-						);
-					});
+					}).catch(() => {});
 				}
 
 				try {
 					const serviceClient = createServiceClient();
-					const { error: notificationError } = await serviceClient
+					await serviceClient
 						.from("notifications")
 						.insert([
 							{
@@ -240,15 +243,8 @@ export async function GET(request: NextRequest) {
 								is_read: false,
 							},
 						]);
-
-					if (notificationError) {
-						console.error(
-							"Failed to insert contract activation notifications:",
-							notificationError,
-						);
-					}
-				} catch (error) {
-					console.error("Failed to create notification client:", error);
+				} catch {
+					// Non-critical
 				}
 			}
 		}

@@ -1,37 +1,50 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+function getEnvOrThrow(key: string): string {
+	const value = process.env[key];
+	if (!value) {
+		throw new Error(`Missing required env var: ${key}`);
+	}
+	return value;
+}
+
 export async function middleware(request: NextRequest) {
 	let supabaseResponse = NextResponse.next({
 		request,
 	});
 
-	const supabase = createServerClient(
-		process.env.NEXT_PUBLIC_SUPABASE_URL!,
-		process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-		{
-			cookies: {
-				getAll() {
-					return request.cookies.getAll();
-				},
-				setAll(cookiesToSet) {
-					cookiesToSet.forEach(({ name, value }) =>
-						request.cookies.set(name, value),
-					);
-					supabaseResponse = NextResponse.next({
-						request,
-					});
-					cookiesToSet.forEach(({ name, value, options }) =>
-						supabaseResponse.cookies.set(name, value, options),
-					);
-				},
+	const supabaseUrl = getEnvOrThrow("NEXT_PUBLIC_SUPABASE_URL");
+	const supabaseAnonKey = getEnvOrThrow("NEXT_PUBLIC_SUPABASE_ANON_KEY");
+
+	const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+		cookies: {
+			getAll() {
+				return request.cookies.getAll();
+			},
+			setAll(cookiesToSet) {
+				cookiesToSet.forEach(({ name, value }) =>
+					request.cookies.set(name, value),
+				);
+				supabaseResponse = NextResponse.next({
+					request,
+				});
+				cookiesToSet.forEach(({ name, value, options }) =>
+					supabaseResponse.cookies.set(name, value, options),
+				);
 			},
 		},
-	);
+	});
 
-	const {
-		data: { user },
-	} = await supabase.auth.getUser();
+	let user = null;
+	try {
+		const {
+			data: { user: authUser },
+		} = await supabase.auth.getUser();
+		user = authUser;
+	} catch {
+		// Supabase is down or unreachable — treat as unauthenticated
+	}
 
 	let profile: { role?: string | null; is_admin?: boolean | null } | null =
 		null;

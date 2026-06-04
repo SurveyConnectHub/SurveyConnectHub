@@ -404,12 +404,23 @@ export default function ProfessionalOnboardingPage() {
 				<h1 className="text-xl font-bold text-gray-900 dark:text-white">
 					Survey<span className="text-green-600">ConnectHub</span>
 				</h1>
-				<Link
-					href="/dashboard/professional"
+				<button
+					type="button"
+					onClick={async () => {
+						try {
+							await supabase
+								.from("professional_profiles")
+								.update({ onboarding_step: step === 1 ? "profile" : "professional" })
+								.eq("id", userId);
+						} catch {
+							// Non-critical
+						}
+						router.push("/dashboard/professional");
+					}}
 					className="text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
 				>
 					Skip for now
-				</Link>
+				</button>
 			</nav>
 
 			<div className="max-w-3xl mx-auto px-6 py-8">
@@ -1120,7 +1131,12 @@ export default function ProfessionalOnboardingPage() {
 						{step > 1 && (
 							<button
 								type="button"
-								onClick={() => setStep((prev) => Math.max(1, prev - 1))}
+								onClick={async () => {
+									const currentStep = step;
+									const nextStep = currentStep === 2 ? "profile" : currentStep === 3 ? "professional" : "portfolio";
+									await saveStep(nextStep as any).catch(() => {});
+									setStep((prev) => Math.max(1, prev - 1));
+								}}
 								disabled={saving}
 								className="px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-700 disabled:opacity-50"
 							>

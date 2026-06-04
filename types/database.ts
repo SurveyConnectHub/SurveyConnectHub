@@ -129,6 +129,21 @@ export interface Notification {
 	created_at: string;
 }
 
+export interface Message {
+	id: string;
+	contract_id: string;
+	sender_id: string;
+	content: string;
+	is_read: boolean;
+	created_at: string;
+}
+
+export interface ClientProfile {
+	id: string;
+	onboarding_dismissed_at: string | null;
+	created_at: string;
+}
+
 export interface Review {
 	id: string;
 	contract_id: string;

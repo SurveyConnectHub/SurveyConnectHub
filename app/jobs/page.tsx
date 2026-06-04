@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -91,28 +91,48 @@ function JobsPageContent() {
 	useEffect(() => {
 		const getData = async () => {
 			setLoading(true);
-			const {
-				data: { user },
-			} = await supabase.auth.getUser();
-			if (!user) {
+			try {
+				const {
+					data: { user },
+				} = await supabase.auth.getUser();
+				if (!user) {
+					router.push("/login");
+					return;
+				}
+
+				const { data: profile } = await supabase
+					.from("profiles")
+					.select("*")
+					.eq("id", user.id)
+					.single();
+
+				setUser(user);
+				setProfile(profile);
+			} catch {
 				router.push("/login");
 				return;
 			}
-
-			const { data: profile } = await supabase
-				.from("profiles")
-				.select("*")
-				.eq("id", user.id)
-				.single();
-
-			setUser(user);
-			setProfile(profile);
 			await fetchJobs();
 			setLoading(false);
 		};
 
 		getData();
-	}, [currentPage, fetchJobs, router, supabase]);
+	}, [fetchJobs, router, supabase]);
+
+	// Reset to page 1 when filters change (intentionally omits currentPage to avoid loops)
+	const filterKey = `${search}:${filterProfession}:${filterBudget}:${filterRemote}`;
+	const prevFilterKey = useRef(filterKey);
+	useEffect(() => {
+		if (prevFilterKey.current !== filterKey) {
+			prevFilterKey.current = filterKey;
+			if (currentPage !== 1) {
+				const params = new URLSearchParams(searchParams.toString());
+				params.delete("page");
+				const nextQuery = params.toString();
+				router.push(nextQuery ? `/jobs?${nextQuery}` : "/jobs");
+			}
+		}
+	}, [filterKey, currentPage, searchParams, router]);
 
 	const formatBudget = (budget: number, type: string) =>
 		type === "hourly" ? `$${budget}/hr` : `$${budget}`;

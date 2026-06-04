@@ -158,7 +158,13 @@ export default function MessagesPage() {
 	}, [messages]);
 
 	const handleSend = async () => {
-		if (!newMessage.trim() || sending) return;
+		if (!newMessage.trim() || sending || !user || !contract) return;
+
+		// Authorization check: only participants can send messages
+		if (contract.client_id !== user.id && contract.professional_id !== user.id) {
+			return;
+		}
+
 		setSending(true);
 
 		const { error } = await supabase.from("messages").insert({

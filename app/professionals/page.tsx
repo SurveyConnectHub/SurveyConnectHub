@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -40,8 +40,8 @@ type ProfessionalRow = Pick<
 	| "created_at"
 > & {
 	profiles:
-		| Pick<Profile, "full_name" | "country" | "email">
-		| Pick<Profile, "full_name" | "country" | "email">[]
+		| Pick<Profile, "full_name" | "country">
+		| Pick<Profile, "full_name" | "country">[]
 		| null;
 };
 
@@ -66,25 +66,18 @@ function ProfessionalsPageContent() {
 	useEffect(() => {
 		const getData = async () => {
 			setLoading(true);
-			const {
-				data: { user },
-			} = await supabase.auth.getUser();
-			if (!user) {
-				router.push("/login");
-				return;
-			}
+			try {
+				const {
+					data: { user },
+				} = await supabase.auth.getUser();
+				if (!user) {
+					router.push("/login");
+					return;
+				}
+				setProfile(null);
 
-			const { data: profileData } = await supabase
-				.from("profiles")
-				.select("*")
-				.eq("id", user.id)
-				.single();
-
-			setProfile(profileData);
-
-			// Removed .eq('verification_status', 'verified') — show all professionals
-			let query = supabase.from("professional_profiles").select(
-				`
+				let query = supabase.from("professional_profiles").select(
+					`
 					id,
 					profession_type,
 					secondary_profession,
@@ -95,42 +88,44 @@ function ProfessionalsPageContent() {
 					created_at,
 					profiles (
 						full_name,
-						country,
-						email
+						country
 					)
 				`,
-				{ count: "exact" },
-			);
-
-			if (search.trim()) {
-				const term = search.trim();
-				query = query.or(
-					`profiles.full_name.ilike.%${term}%,profession_type.ilike.%${term}%`,
+					{ count: "exact" },
 				);
-			}
 
-			if (filterProfession) {
-				query = query.eq("profession_type", filterProfession);
-			}
+				if (search.trim()) {
+					const term = search.trim();
+					query = query.or(
+						`profiles.full_name.ilike.%${term}%,profession_type.ilike.%${term}%`,
+					);
+				}
 
-			if (filterSoftware) {
-				query = query.contains("software_tools", [filterSoftware]);
-			}
+				if (filterProfession) {
+					query = query.eq("profession_type", filterProfession);
+				}
 
-			const { data, count, error } = await query
-				.order("created_at", { ascending: false })
-				.range(pageIndex * PAGE_SIZE, (pageIndex + 1) * PAGE_SIZE - 1);
+				if (filterSoftware) {
+					query = query.contains("software_tools", [filterSoftware]);
+				}
 
-			if (error) {
-				console.error("Failed to fetch professionals:", error);
-				setProfessionals([]);
-				setTotalCount(0);
-				setLoading(false);
+				const { data, count, error } = await query
+					.order("created_at", { ascending: false })
+					.range(pageIndex * PAGE_SIZE, (pageIndex + 1) * PAGE_SIZE - 1);
+
+				if (error) {
+					setProfessionals([]);
+					setTotalCount(0);
+					setLoading(false);
+					return;
+				}
+
+				setProfessionals(data || []);
+				setTotalCount(count || 0);
+			} catch {
+				router.push("/login");
 				return;
 			}
-
-			setProfessionals(data || []);
-			setTotalCount(count || 0);
 			setLoading(false);
 		};
 		getData();
@@ -144,20 +139,20 @@ function ProfessionalsPageContent() {
 		filterSoftware,
 	]);
 
+	// Reset to page 1 when filters change (separate from page-change logic)
+	const filterKey = `${search}:${filterProfession}:${filterSoftware}`;
+	const prevFilterKey = useRef(filterKey);
 	useEffect(() => {
-		if (currentPage === 1) return;
-		const params = new URLSearchParams(searchParams.toString());
-		params.delete("page");
-		const nextQuery = params.toString();
-		router.push(nextQuery ? `/professionals?${nextQuery}` : "/professionals");
-	}, [
-		currentPage,
-		filterProfession,
-		filterSoftware,
-		router,
-		search,
-		searchParams,
-	]);
+		if (prevFilterKey.current !== filterKey) {
+			prevFilterKey.current = filterKey;
+			if (currentPage !== 1) {
+				const params = new URLSearchParams(searchParams.toString());
+				params.delete("page");
+				const nextQuery = params.toString();
+				router.push(nextQuery ? `/professionals?${nextQuery}` : "/professionals");
+			}
+		}
+	}, [filterKey, currentPage, searchParams, router]);
 
 	const getProfessionLabel = (type: string) => {
 		const labels: Record<string, string> = {

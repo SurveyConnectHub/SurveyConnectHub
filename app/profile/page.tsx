@@ -103,28 +103,39 @@ export default function ProfilePage() {
         return;
       }
 
+      const updates: Record<string, any> = {
+        full_name: formData.full_name,
+        phone: formData.phone,
+        country: formData.country,
+        city: formData.city,
+        bio: formData.bio,
+        bank_name: formData.bank_name,
+        bank_account_number: formData.bank_account_number,
+        bank_account_name: formData.bank_account_name,
+      };
+
+      // Only reset recipient code when bank details actually change
+      const bankChanged =
+        formData.bank_name !== profile?.bank_name ||
+        formData.bank_account_number !== profile?.bank_account_number ||
+        formData.bank_account_name !== profile?.bank_account_name;
+
+      if (bankChanged && profile?.paystack_recipient_code) {
+        updates.paystack_recipient_code = null;
+      }
+
       const { error } = await supabase
         .from("profiles")
-        .update({
-          full_name: formData.full_name,
-          phone: formData.phone,
-          country: formData.country,
-          city: formData.city,
-          bio: formData.bio,
-          bank_name: formData.bank_name,
-          bank_account_number: formData.bank_account_number,
-          bank_account_name: formData.bank_account_name,
-          paystack_recipient_code: null, // reset so new recipient gets created
-        })
+        .update(updates)
         .eq("id", user.id);
 
       if (error) {
         setMessage("Failed to save. Please try again.");
       } else {
+        setProfile((prev: any) => ({ ...prev, ...updates }));
         setMessage("Profile saved successfully!");
       }
-    } catch (error) {
-      console.error("Profile save failed:", error);
+    } catch {
       setMessage("Failed to save. Please try again.");
     } finally {
       setSaving(false);

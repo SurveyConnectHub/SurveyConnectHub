@@ -180,6 +180,9 @@ export async function sendNotificationEmail(options: {
 		throwError("NEXT_PUBLIC_APP_URL is not configured", 500);
 	}
 
+	const senderEmail =
+		process.env.RESEND_SENDER_EMAIL || "admin@surveyconnecthub.com";
+
 	const bodies: Record<NotifyEvent, string> = {
 		contract_activated: `Hi ${safeRecipientName},<br><br>Your contract for <strong>${safeDetails.jobTitle}</strong> is now active. You can communicate with your ${safeDetails.otherParty} via the platform chat.<br><br><a href="${appUrl}/dashboard/${safeDetails.role}/contracts">View Contract</a>`,
 		job_completed: `Hi ${safeRecipientName},<br><br>The professional has marked <strong>${safeDetails.jobTitle}</strong> as complete. Please review the work and release payment if satisfied.<br><br><a href="${appUrl}/dashboard/client/contracts">Review & Release Payment</a>`,
@@ -188,19 +191,21 @@ export async function sendNotificationEmail(options: {
 		verification_approved: `Hi ${safeRecipientName}, congratulations! Your ${safeDetails.professionType} credentials have been verified. You can now apply to jobs on SurveyConnectHub. <a href="${appUrl}/jobs">Browse Jobs</a>`,
 	};
 
+	const unsubscribeUrl = `${appUrl}/settings/account`;
+
 	try {
 		await resend.emails.send({
-			from: "SurveyConnectHub <notifications@resend.dev>",
+			from: `SurveyConnectHub <${senderEmail}>`,
 			to: recipientEmail,
 			subject: subjects[event],
 			html: `<div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
         ${bodies[event]}
         <hr style="margin: 24px 0; border-color: #e5e7eb;" />
         <p style="color: #6b7280; font-size: 12px;">SurveyConnectHub — Marketplace for Geospatial Professionals</p>
+        <p style="color: #9ca3af; font-size: 11px;"><a href="${unsubscribeUrl}" style="color: #6b7280;">Unsubscribe</a></p>
       </div>`,
 		});
-	} catch (error: any) {
-		const message = error?.message || "Failed to send notification email";
-		throwError(message, 502);
+	} catch {
+		throwError("Failed to send notification email", 502);
 	}
 }
