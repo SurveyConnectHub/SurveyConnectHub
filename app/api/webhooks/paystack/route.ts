@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
             .from("contracts")
             .update({ payment_released_at: null })
             .eq("id", contractId)
-            .is("payment_reference", null);
+            .not("payment_released_at", "is", null);
         }
       }
 

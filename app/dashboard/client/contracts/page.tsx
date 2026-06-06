@@ -25,26 +25,31 @@ export default function ClientContractsPage() {
 
   useEffect(() => {
     const getData = async () => {
-      const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
-        router.push("/login");
-        return;
+      try {
+        const supabase = createClient();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) {
+          router.push("/login");
+          return;
+        }
+
+        const { data } = await supabase
+          .from("contracts")
+          .select(
+            `*, jobs(title, description), profiles!contracts_professional_id_fkey(full_name, email)`,
+          )
+          .eq("client_id", user.id)
+          .in("status", ["active", "completed"])
+          .order("created_at", { ascending: false });
+
+        setContracts(data || []);
+      } catch {
+        console.error("Failed to load contracts");
+      } finally {
+        setLoading(false);
       }
-
-      const { data } = await supabase
-        .from("contracts")
-        .select(
-          `*, jobs(title, description), profiles!contracts_professional_id_fkey(full_name, email)`,
-        )
-        .eq("client_id", user.id)
-        .in("status", ["active", "completed"])
-        .order("created_at", { ascending: false });
-
-      setContracts(data || []);
-      setLoading(false);
     };
     getData();
   }, [router]);

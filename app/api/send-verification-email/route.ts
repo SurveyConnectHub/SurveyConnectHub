@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
 		}
 
 		await resend.emails.send({
-			from: "SurveyConnectHub <onboarding@resend.dev>",
+			from: `SurveyConnectHub <${process.env.RESEND_SENDER_EMAIL || "admin@surveyconnecthub.com"}>`,
 			to: adminEmail,
 			subject: "New Verification Request — SurveyConnectHub",
 			html: `

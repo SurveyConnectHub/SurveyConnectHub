@@ -1,7 +1,64 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Redis } from "@upstash/redis";
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { validateOrigin } from "@/lib/csrf";
+
+const CACHE_TTL_SECONDS = 300;
+
+function getRedis(): Redis | null {
+  const url = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (!url || !token) return null;
+  try {
+    return new Redis({ url, token });
+  } catch {
+    return null;
+  }
+}
+
+async function getExchangeRate(): Promise<number | null> {
+  const redis = getRedis();
+
+  if (redis) {
+    try {
+      const cached = await redis.get<number>("exchange_rate_usd_ngn");
+      if (cached !== null && typeof cached === "number") {
+        return cached;
+      }
+    } catch {
+      // Redis unavailable, proceed to API fetch
+    }
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+
+  try {
+    const res = await fetch("https://cdn.moneyconvert.net/api/latest.json", {
+      signal: controller.signal,
+    });
+    const data = await res.json();
+    const rate = data?.rates?.NGN;
+    if (!rate || typeof rate !== "number") return null;
+
+    if (redis) {
+      try {
+        await redis.set("exchange_rate_usd_ngn", rate, {
+          ex: CACHE_TTL_SECONDS,
+        });
+      } catch {
+        // Non-critical
+      }
+    }
+
+    return rate;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -60,35 +117,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
-    // Fetch exchange rate USD → NGN with timeout
-    const exchangeController = new AbortController();
-    const exchangeTimeout = setTimeout(() => exchangeController.abort(), 8000);
-
-    let exchangeData: { conversion_rate?: number; result?: string };
-    try {
-      const exchangeResponse = await fetch(
-        `https://v6.exchangerate-api.com/v6/${process.env.EXCHANGE_RATE_API_KEY}/pair/USD/NGN`,
-        { signal: exchangeController.signal },
-      );
-      exchangeData = await exchangeResponse.json();
-    } catch {
-      clearTimeout(exchangeTimeout);
-      return NextResponse.json(
-        { error: "Could not fetch exchange rate" },
-        { status: 500 },
-      );
-    } finally {
-      clearTimeout(exchangeTimeout);
-    }
-
-    if (!exchangeData.conversion_rate) {
+    // Fetch exchange rate USD → NGN (cached in Redis for 5 min)
+    const exchangeRate = await getExchangeRate();
+    if (!exchangeRate) {
       return NextResponse.json(
         { error: "Could not fetch exchange rate" },
         { status: 500 },
       );
     }
-
-    const exchangeRate = exchangeData.conversion_rate;
 
     // 5% client fee on top of agreed budget
     const agreedBudget = Number(contract.agreed_budget);

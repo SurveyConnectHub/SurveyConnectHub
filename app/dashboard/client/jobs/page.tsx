@@ -27,22 +27,27 @@ export default function ClientJobsPage() {
 
 	useEffect(() => {
 		const getData = async () => {
-			const {
-				data: { user },
-			} = await supabase.auth.getUser();
-			if (!user) {
-				router.push("/login");
-				return;
+			try {
+				const {
+					data: { user },
+				} = await supabase.auth.getUser();
+				if (!user) {
+					router.push("/login");
+					return;
+				}
+
+				const { data } = await supabase
+					.from("jobs")
+					.select("*")
+					.eq("client_id", user.id)
+					.order("created_at", { ascending: false });
+
+				setJobs(data || []);
+			} catch {
+				console.error("Failed to load jobs");
+			} finally {
+				setLoading(false);
 			}
-
-			const { data } = await supabase
-				.from("jobs")
-				.select("*")
-				.eq("client_id", user.id)
-				.order("created_at", { ascending: false });
-
-			setJobs(data || []);
-			setLoading(false);
 		};
 		getData();
 	}, [router, supabase]);
