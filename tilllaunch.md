@@ -3,6 +3,19 @@
 > **Current state**: The platform is a generic freelance marketplace. Jobs use text descriptions, portfolios show generic websites/apps, and payments are flat-rate. Nothing signals "built for geospatial professionals." Below is the feature set that creates separation.
 
 ---
+## honorable mentions 
+transaction history
+report user system
+saved jobs system
+escrow milestone flow 
+withdrawal system
+invoice/receipt system
+backup system
+page system optimization
+mobile responsiveness
+bug report workflow
+database schema
+security/ vulnerabilities
 
 ## Tier 1 — Core Differentiators (MVP)
 
