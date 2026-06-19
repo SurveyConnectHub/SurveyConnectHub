@@ -108,7 +108,7 @@ export async function middleware(request: NextRequest) {
 				return NextResponse.redirect(url);
 			}
 			const url = request.nextUrl.clone();
-			url.pathname = "/";
+			url.pathname = "/login";
 			return NextResponse.redirect(url);
 		}
 	}
@@ -121,7 +121,7 @@ export async function middleware(request: NextRequest) {
 				return NextResponse.redirect(url);
 			}
 			const url = request.nextUrl.clone();
-			url.pathname = "/";
+			url.pathname = "/login";
 			return NextResponse.redirect(url);
 		}
 	}
