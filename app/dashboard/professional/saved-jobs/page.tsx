@@ -87,7 +87,7 @@ export default function ProfessionalSavedJobsPage() {
 	if (loading) {
 		return (
 			<div className="max-w-6xl mx-auto px-6 py-8">
-				<BackButton href="/dashboard/professional" />
+				<BackButton href="/dashboard/professional" label="Dashboard" />
 				<div className="flex items-center gap-3 mb-8 mt-4">
 					<Bookmark className="w-6 h-6 text-green-600" />
 					<h1 className="text-2xl font-bold text-gray-900 dark:text-white">Saved Jobs</h1>
@@ -103,7 +103,7 @@ export default function ProfessionalSavedJobsPage() {
 
 	return (
 		<div className="max-w-6xl mx-auto px-6 py-8">
-			<BackButton href="/dashboard/professional" />
+			<BackButton href="/dashboard/professional" label="Dashboard" />
 			<div className="flex items-center gap-3 mb-8 mt-4">
 				<Bookmark className="w-6 h-6 text-green-600" />
 				<h1 className="text-2xl font-bold text-gray-900 dark:text-white">Saved Jobs</h1>
