@@ -37,18 +37,22 @@ export default function LoginPage() {
 			if (signInError) throw signInError;
 			if (!data.user) throw new Error("Login failed");
 
+			await supabase.auth.getSession();
+
 			const { data: profile } = await supabase
 				.from("profiles")
 				.select("role")
 				.eq("id", data.user.id)
 				.single();
 
+			router.refresh();
+
 			if (profile?.role === "client") {
-				router.push("/dashboard/client");
+				router.replace("/dashboard/client");
 			} else if (profile?.role === "professional") {
-				router.push("/dashboard/professional");
+				router.replace("/dashboard/professional");
 			} else {
-				router.push("/");
+				router.replace("/login?error=no_role");
 			}
 		} catch (err: any) {
 			setError(err.message || "Invalid email or password");

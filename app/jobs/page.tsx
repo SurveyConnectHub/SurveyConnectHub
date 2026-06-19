@@ -12,6 +12,7 @@ import {
 	Search,
 	SlidersHorizontal,
 } from "lucide-react";
+import BookmarkButton from "@/components/BookmarkButton";
 import { CardSkeleton } from "@/components/ui/Skeleton";
 import type { Job, Profile } from "@/types/database";
 
@@ -357,7 +358,8 @@ function JobsPageContent() {
 										</div>
 									</div>
 
-									<div className="text-right shrink-0">
+									<div className="text-right shrink-0 flex flex-col items-end gap-2">
+										<BookmarkButton jobId={job.id} />
 										<p className="text-2xl font-bold text-gray-900 dark:text-white">
 											{formatBudget(job.budget, job.budget_type)}
 										</p>

@@ -342,7 +342,7 @@ function ProfessionalsPageContent() {
 										{getProfessionLabel(prof.profession_type)}
 									</p>
 
-									{prof.years_experience > 0 && (
+									{prof.years_experience != null && prof.years_experience > 0 && (
 										<p className="text-gray-500 dark:text-gray-400 text-sm mb-3">
 											{prof.years_experience} year
 											{prof.years_experience !== 1 ? "s" : ""} experience

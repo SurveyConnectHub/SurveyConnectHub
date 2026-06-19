@@ -381,7 +381,7 @@ export default function AdminContent({
 														)}
 													</p>
 												</div>
-												{prof.years_experience > 0 && (
+												{prof.years_experience != null && prof.years_experience > 0 && (
 													<div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3">
 														<p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
 															Experience

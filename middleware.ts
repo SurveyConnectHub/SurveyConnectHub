@@ -102,16 +102,26 @@ export async function middleware(request: NextRequest) {
 
 	if (request.nextUrl.pathname.startsWith("/dashboard/client")) {
 		if (profile?.role !== "client") {
+			if (profile?.role === "professional") {
+				const url = request.nextUrl.clone();
+				url.pathname = "/dashboard/professional";
+				return NextResponse.redirect(url);
+			}
 			const url = request.nextUrl.clone();
-			url.pathname = "/dashboard/professional";
+			url.pathname = "/";
 			return NextResponse.redirect(url);
 		}
 	}
 
 	if (request.nextUrl.pathname.startsWith("/dashboard/professional")) {
 		if (profile?.role !== "professional") {
+			if (profile?.role === "client") {
+				const url = request.nextUrl.clone();
+				url.pathname = "/dashboard/client";
+				return NextResponse.redirect(url);
+			}
 			const url = request.nextUrl.clone();
-			url.pathname = "/dashboard/client";
+			url.pathname = "/";
 			return NextResponse.redirect(url);
 		}
 	}
