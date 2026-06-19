@@ -17,6 +17,7 @@ bug report workflow
 database schema
 security/ vulnerabilities
 
+
 ## Tier 1 — Core Differentiators (MVP)
 
 ### 1. Geospatial Scope of Work Builder
