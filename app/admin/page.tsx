@@ -1,6 +1,7 @@
 import AdminContent, { AdminStats, PendingProfessional } from "./AdminContent";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { firstOf } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -73,9 +74,7 @@ export default async function AdminDashboard() {
 
 	const normalizedPending = (pending || []).map((item: any) => ({
 		...item,
-		profiles: Array.isArray(item.profiles)
-			? (item.profiles[0] ?? null)
-			: (item.profiles ?? null),
+		profiles: firstOf(item.profiles),
 	}));
 
 	return (

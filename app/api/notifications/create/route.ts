@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { validateOrigin } from "@/lib/csrf";
+import { firstOf } from "@/lib/db";
 
 type CreateNotificationPayload = {
 	event: "job_completed";
@@ -77,7 +78,7 @@ export async function POST(request: NextRequest) {
 				title: "Job marked complete",
 				message: `${
 					professionalProfile?.full_name ?? "The professional"
-				} marked "${contract.jobs?.[0]?.title ?? "your job"}" complete.`,
+				} marked "${firstOf(contract.jobs)?.title ?? "your job"}" complete.`,
 				type: "contract",
 				link: "/dashboard/client/contracts",
 				is_read: false,

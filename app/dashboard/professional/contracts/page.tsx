@@ -9,6 +9,7 @@ import { createClient } from "@/lib/supabase/client";
 import { MessageSquare, MessageSquareOff, FileCheck } from "lucide-react";
 import { CardSkeleton } from "@/components/ui/Skeleton";
 import BackButton from "@/components/ui/BackButton";
+import { firstOf } from "@/lib/db";
 import type { Contract, Job, Profile } from "@/types/database";
 
 type ContractRow = Contract & {
@@ -20,6 +21,7 @@ export default function ProfessionalContractsPage() {
   const router = useRouter();
   const [contracts, setContracts] = useState<ContractRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState("");
   const [completing, setCompleting] = useState<string | null>(null);
 
   useEffect(() => {
@@ -34,7 +36,7 @@ export default function ProfessionalContractsPage() {
           return;
         }
 
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from("contracts")
           .select(
             `*, jobs(title, description, location, job_type), profiles!contracts_client_id_fkey(full_name, email)`,
@@ -43,9 +45,16 @@ export default function ProfessionalContractsPage() {
           .in("status", ["active", "completed"])
           .order("created_at", { ascending: false });
 
+        if (error) {
+          console.error("Failed to load contracts:", error);
+          setFetchError("Unable to load contracts. Please try again.");
+          return;
+        }
+
         setContracts(data || []);
-      } catch {
-        console.error("Failed to load contracts");
+      } catch (err) {
+        console.error("Failed to load contracts:", err);
+        setFetchError("Unable to load contracts. Please try again.");
       } finally {
         setLoading(false);
       }
@@ -77,7 +86,7 @@ export default function ProfessionalContractsPage() {
             recipientEmail: contract.profiles.email,
             recipientName: contract.profiles.full_name,
             details: {
-              jobTitle: contract.jobs?.title ?? "your job",
+              jobTitle: firstOf(contract.jobs)?.title ?? "your job",
               contractId,
             },
           }),
@@ -143,6 +152,12 @@ export default function ProfessionalContractsPage() {
           </p>
         </div>
 
+        {fetchError && (
+          <div className="rounded-xl p-4 mb-6 text-sm font-medium bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800">
+            {fetchError}
+          </div>
+        )}
+
         {contracts.length === 0 ? (
           <div className="bg-white dark:bg-gray-900 rounded-2xl p-12 text-center border border-gray-100 dark:border-gray-800">
             <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -183,7 +198,7 @@ export default function ProfessionalContractsPage() {
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
                         <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                          {contract.jobs?.title}
+                          {firstOf(contract.jobs)?.title}
                         </h3>
                         <span
                           className={`text-xs font-medium px-2 py-1 rounded-full ${
@@ -208,8 +223,8 @@ export default function ProfessionalContractsPage() {
 
                       <div className="flex items-center gap-4 text-xs text-gray-400 dark:text-gray-500">
                         <span>
-                          {contract.jobs?.location ||
-                            (contract.jobs?.job_type === "remote"
+                          {firstOf(contract.jobs)?.location ||
+                            (firstOf(contract.jobs)?.job_type === "remote"
                               ? "Remote"
                               : "")}
                         </span>

@@ -1,6 +1,7 @@
 import { Resend } from "resend";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServiceClient } from "@/lib/supabase/server";
+import { firstOf } from "@/lib/db";
 
 export type NotifyEvent =
 	| "contract_activated"
@@ -115,7 +116,7 @@ export async function sendNotificationEmail(options: {
 			throwError("Job not found", 404);
 		}
 		const jobData = job as NonNullable<typeof job>;
-		const jobClientEmail = jobData.profiles?.[0]?.email;
+		const jobClientEmail = firstOf(jobData.profiles)?.email;
 		if (jobClientEmail !== recipientEmail) {
 			throwError("Recipient mismatch", 403);
 		}
@@ -158,8 +159,8 @@ export async function sendNotificationEmail(options: {
 		}
 
 		const allowedEmails = [
-			contractData.client?.[0]?.email,
-			contractData.professional?.[0]?.email,
+			firstOf(contractData.client)?.email,
+			firstOf(contractData.professional)?.email,
 		].filter(Boolean);
 
 		if (!allowedEmails.includes(recipientEmail)) {

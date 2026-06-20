@@ -9,6 +9,7 @@ import { createClient } from "@/lib/supabase/client";
 import { MessageSquare, MessageSquareOff, FileCheck } from "lucide-react";
 import { CardSkeleton } from "@/components/ui/Skeleton";
 import BackButton from "@/components/ui/BackButton";
+import { firstOf } from "@/lib/db";
 import type { Contract, Job, Profile } from "@/types/database";
 
 type ContractRow = Contract & {
@@ -20,6 +21,7 @@ export default function ClientContractsPage() {
   const router = useRouter();
   const [contracts, setContracts] = useState<ContractRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState("");
   const [releasing, setReleasing] = useState<string | null>(null);
   const [message, setMessage] = useState("");
 
@@ -35,7 +37,7 @@ export default function ClientContractsPage() {
           return;
         }
 
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from("contracts")
           .select(
             `*, jobs(title, description), profiles!contracts_professional_id_fkey(full_name, email)`,
@@ -44,9 +46,16 @@ export default function ClientContractsPage() {
           .in("status", ["active", "completed"])
           .order("created_at", { ascending: false });
 
+        if (error) {
+          console.error("Failed to load contracts:", error);
+          setFetchError("Unable to load contracts. Please try again.");
+          return;
+        }
+
         setContracts(data || []);
-      } catch {
-        console.error("Failed to load contracts");
+      } catch (err) {
+        console.error("Failed to load contracts:", err);
+        setFetchError("Unable to load contracts. Please try again.");
       } finally {
         setLoading(false);
       }
@@ -128,6 +137,12 @@ export default function ClientContractsPage() {
           </p>
         </div>
 
+        {fetchError && (
+          <div className="rounded-xl p-4 mb-6 text-sm font-medium bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800">
+            {fetchError}
+          </div>
+        )}
+
         {message && (
           <div
             className={`rounded-xl p-4 mb-6 text-sm font-medium ${
@@ -179,7 +194,7 @@ export default function ClientContractsPage() {
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
                         <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                          {contract.jobs?.title}
+                          {firstOf(contract.jobs)?.title}
                         </h3>
                         <span
                           className={`text-xs font-medium px-2 py-1 rounded-full ${

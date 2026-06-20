@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { CheckCircle2, Hourglass, Users } from "lucide-react";
+import { firstOf } from "@/lib/db";
 import { CardSkeleton } from "@/components/ui/Skeleton";
 import type { Profile, ProfessionalProfile } from "@/types/database";
 
@@ -299,9 +300,7 @@ function ProfessionalsPageContent() {
 				) : (
 					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 						{professionals.map((prof) => {
-							const profileInfo = Array.isArray(prof.profiles)
-								? prof.profiles[0]
-								: prof.profiles;
+							const profileInfo = firstOf(prof.profiles);
 							return (
 								<div
 									key={prof.id}

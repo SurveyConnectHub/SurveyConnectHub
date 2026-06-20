@@ -13,7 +13,13 @@ const escapeHtml = (value: string) =>
 
 export async function POST(request: NextRequest) {
   const secret = process.env.ADMIN_ALERT_SECRET;
-  if (secret && request.headers.get("x-admin-alert-secret") !== secret) {
+  if (!secret) {
+    return NextResponse.json(
+      { error: "Alerts not configured" },
+      { status: 500 },
+    );
+  }
+  if (request.headers.get("x-admin-alert-secret") !== secret) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

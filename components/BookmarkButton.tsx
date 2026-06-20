@@ -21,7 +21,8 @@ export default function BookmarkButton({ jobId }: BookmarkButtonProps) {
 					setIsSaved(data.isSaved);
 					setSavedJobId(data.savedJobId);
 				}
-			} catch {
+			} catch (err) {
+				console.error("BookmarkButton: failed to check saved status:", err);
 			} finally {
 				setLoading(false);
 			}
@@ -49,7 +50,8 @@ export default function BookmarkButton({ jobId }: BookmarkButtonProps) {
 					setSavedJobId(data.savedJob.id);
 				}
 			}
-		} catch {
+		} catch (err) {
+			console.error("BookmarkButton: failed to toggle save:", err);
 		}
 	}, [isSaved, jobId]);
 

@@ -111,19 +111,21 @@ export async function POST(request: NextRequest) {
       event.event === "transfer.failed" ||
       event.event === "transfer.reversed"
     ) {
-      const { reference } = event.data || {};
+      const { reference, metadata } = event.data || {};
       const supabase = await createClient();
 
-      // Try to find the contract by reference prefix (SC-REL-{contractId}-{timestamp})
-      if (reference && reference.startsWith("SC-REL-")) {
-        const contractId = reference.split("-").slice(2, -1).join("-");
-        if (contractId) {
-          await supabase
-            .from("contracts")
-            .update({ payment_released_at: null })
-            .eq("id", contractId)
-            .not("payment_released_at", "is", null);
-        }
+      // Prefer contract_id from metadata (set when initiating transfer),
+      // fall back to positional parsing of the reference string.
+      let contractId = metadata?.contract_id;
+      if (!contractId && reference && reference.startsWith("SC-REL-")) {
+        contractId = reference.split("-").slice(2, -1).join("-");
+      }
+      if (contractId) {
+        await supabase
+          .from("contracts")
+          .update({ payment_released_at: null })
+          .eq("id", contractId)
+          .not("payment_released_at", "is", null);
       }
 
       const appUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "");

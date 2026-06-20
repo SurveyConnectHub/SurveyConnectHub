@@ -1,6 +1,7 @@
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { sendNotificationEmail } from "@/lib/email/notify";
 import { NextRequest, NextResponse } from "next/server";
+import { firstOf } from "@/lib/db";
 
 export async function GET(request: NextRequest) {
 	try {
@@ -167,7 +168,7 @@ export async function GET(request: NextRequest) {
 				}
 
 				// Notifications — best effort, non-critical
-				const jobData = Array.isArray(contract.jobs) ? contract.jobs[0] : contract.jobs;
+				const jobData = firstOf(contract.jobs);
 				const jobTitle = jobData?.title ?? "your job";
 
 				const { data: clientProfile } = await supabase

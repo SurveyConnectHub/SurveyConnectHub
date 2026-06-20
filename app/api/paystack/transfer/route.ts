@@ -3,6 +3,7 @@ import { checkRateLimit } from "@/lib/rateLimit";
 import { validateOrigin } from "@/lib/csrf";
 import { NextRequest, NextResponse } from "next/server";
 import { sendNotificationEmail } from "@/lib/email/notify";
+import { firstOf } from "@/lib/db";
 
 export async function POST(request: NextRequest) {
 	try {
@@ -141,13 +142,45 @@ export async function POST(request: NextRequest) {
 
 			recipientCode = recipientData.data.recipient_code;
 
-			await supabase
+			const { error: recipientUpdateError } = await supabase
 				.from("profiles")
 				.update({ paystack_recipient_code: recipientCode })
 				.eq("id", contract.professional_id);
+
+			if (recipientUpdateError) {
+				console.error("Failed to save paystack_recipient_code:", recipientUpdateError);
+			}
 		}
 
-		// Initiate transfer with a unique reference for idempotency
+		// Atomically claim the release BEFORE calling Paystack to prevent
+		// concurrent requests from both calling Paystack (double-spend).
+		const releaseTimestamp = new Date().toISOString();
+		const { data: claimedRows, error: claimError } = await supabase
+			.from("contracts")
+			.update({
+				payment_released_at: releaseTimestamp,
+				professional_receives: professionalReceivesUsd,
+				platform_fee: platformFeeUsd,
+			})
+			.eq("id", contractId)
+			.is("payment_released_at", null)
+			.select("id");
+
+		if (claimError) {
+			return NextResponse.json(
+				{ error: "Failed to record payment release" },
+				{ status: 500 },
+			);
+		}
+
+		if (!claimedRows || claimedRows.length === 0) {
+			return NextResponse.json(
+				{ error: "Payment already released" },
+				{ status: 409 },
+			);
+		}
+
+		// Claim acquired — now call Paystack. If this fails, rollback the claim.
 		const transferReference = `SC-REL-${contractId}-${Date.now()}`;
 		const transferResponse = await fetch("https://api.paystack.co/transfer", {
 			method: "POST",
@@ -160,11 +193,21 @@ export async function POST(request: NextRequest) {
 				amount: professionalAmountKobo,
 				recipient: recipientCode,
 				reference: transferReference,
-				reason: `Payment for ${contract.jobs?.title ?? contract.job_id} on SurveyConnectHub`,
+				reason: `Payment for ${firstOf(contract.jobs)?.title ?? contract.job_id} on SurveyConnectHub`,
+				metadata: { contract_id: contractId },
 			}),
 		});
 
 		if (!transferResponse.ok) {
+			try {
+				await supabase
+					.from("contracts")
+					.update({ payment_released_at: null, professional_receives: null, platform_fee: null })
+					.eq("id", contractId)
+					.eq("payment_released_at", releaseTimestamp);
+			} catch {
+				// best-effort rollback
+			}
 			return NextResponse.json(
 				{ error: "Transfer failed" },
 				{ status: 502 },
@@ -174,36 +217,16 @@ export async function POST(request: NextRequest) {
 		const transferData = await transferResponse.json();
 
 		if (!transferData.status) {
+			try {
+				await supabase
+					.from("contracts")
+					.update({ payment_released_at: null, professional_receives: null, platform_fee: null })
+					.eq("id", contractId)
+					.eq("payment_released_at", releaseTimestamp);
+			} catch {
+				// best-effort rollback
+			}
 			return NextResponse.json({ error: "Transfer failed" }, { status: 500 });
-		}
-
-		// Only mark as released after Paystack confirms the transfer
-		const releaseTimestamp = new Date().toISOString();
-		const { data: releasedRows, error: releaseError } = await supabase
-			.from("contracts")
-			.update({
-				payment_released_at: releaseTimestamp,
-				professional_receives: professionalReceivesUsd,
-				platform_fee: platformFeeUsd,
-			})
-			.eq("id", contractId)
-			.is("payment_released_at", null)
-			.select("id");
-
-		if (releaseError) {
-			// Payment was sent but we failed to record it — admin must reconcile
-			return NextResponse.json(
-				{ error: "Payment sent but could not be recorded" },
-				{ status: 500 },
-			);
-		}
-
-		if (!releasedRows || releasedRows.length === 0) {
-			// Race condition: another request already completed this
-			return NextResponse.json(
-				{ error: "Payment already released" },
-				{ status: 409 },
-			);
 		}
 
 		// Notifications — best effort, non-critical
@@ -217,7 +240,7 @@ export async function POST(request: NextRequest) {
 					recipientName: professional.full_name,
 					details: {
 						amount: professionalReceivesUsd.toFixed(2),
-						jobTitle: contract.jobs?.title ?? "your job",
+						jobTitle: firstOf(contract.jobs)?.title ?? "your job",
 						contractId,
 					},
 				},
@@ -232,7 +255,7 @@ export async function POST(request: NextRequest) {
 					user_id: contract.professional_id,
 					title: "Payment released",
 					message: `$${professionalReceivesUsd.toFixed(2)} released for "${
-						contract.jobs?.title ?? "your job"
+						firstOf(contract.jobs)?.title ?? "your job"
 					}"`,
 					type: "payment",
 					link: "/dashboard/professional/contracts",

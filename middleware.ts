@@ -55,9 +55,9 @@ export async function middleware(request: NextRequest) {
 			.from("profiles")
 			.select("role, is_admin")
 			.eq("id", user.id)
-			.single();
+			.maybeSingle();
 
-		profile = data;
+		profile = data ?? null;
 
 		if (data?.role === "professional") {
 			const { data: professionalData } = await supabase
