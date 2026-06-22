@@ -4,6 +4,7 @@ CREATE POLICY "profiles_select_own" ON profiles FOR SELECT USING (auth.uid() = i
 CREATE POLICY "profiles_update_own" ON profiles FOR UPDATE USING (auth.uid() = id);
 -- Allow reading other profiles for marketplace browsing (limited columns enforced at query level)
 CREATE POLICY "profiles_select_public" ON profiles FOR SELECT USING (true);
+CREATE POLICY "profiles_insert_own" ON profiles FOR INSERT WITH CHECK (auth.uid() = id);
 
 -- Jobs: clients can CRUD their own, professionals can read open jobs
 ALTER TABLE jobs ENABLE ROW LEVEL SECURITY;
@@ -76,6 +77,11 @@ CREATE POLICY "prof_profiles_insert_own" ON professional_profiles FOR INSERT
 CREATE POLICY "prof_profiles_update_own" ON professional_profiles FOR UPDATE
   USING (id = auth.uid())
   WITH CHECK (id = auth.uid());
+
+-- Client profiles: users can insert their own
+ALTER TABLE client_profiles ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "client_profiles_insert_own" ON client_profiles FOR INSERT
+  WITH CHECK (auth.uid() = id);
 
 -- Verification documents storage policy (add via Supabase dashboard or CLI):
 -- bucket: verification-documents

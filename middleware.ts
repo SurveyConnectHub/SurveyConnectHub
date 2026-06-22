@@ -15,9 +15,9 @@ export async function middleware(request: NextRequest) {
 	});
 
 	const supabaseUrl = getEnvOrThrow("NEXT_PUBLIC_SUPABASE_URL");
-	const supabaseAnonKey = getEnvOrThrow("NEXT_PUBLIC_SUPABASE_ANON_KEY");
+	const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? getEnvOrThrow("NEXT_PUBLIC_SUPABASE_ANON_KEY");
 
-	const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+	const supabase = createServerClient(supabaseUrl, supabaseKey, {
 		cookies: {
 			getAll() {
 				return request.cookies.getAll();

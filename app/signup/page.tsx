@@ -65,6 +65,23 @@ export default function SignupPage() {
 			if (authError) throw authError;
 			if (!authData.user) throw new Error("Signup failed");
 
+			// If email confirmation is required, the session will be null.
+			// Wait a beat for the session to propagate, then check again.
+			if (!authData.session) {
+				await supabase.auth.getSession();
+			}
+
+			// If we still have no session, the user must confirm their email first.
+			const {
+				data: { session },
+			} = await supabase.auth.getSession();
+			if (!session) {
+				setError(
+					"Account created! Please check your email to confirm before logging in.",
+				);
+				return;
+			}
+
 			const { error: profileError } = await supabase.from("profiles").insert({
 				id: authData.user.id,
 				role: formData.role,

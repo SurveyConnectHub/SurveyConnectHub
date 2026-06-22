@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { Eye, EyeOff } from "lucide-react";
 
 export default function LoginPage() {
 	const router = useRouter();
+	const searchParams = useSearchParams();
 	const supabase = createClient();
 
 	const [formData, setFormData] = useState({
@@ -17,6 +18,15 @@ export default function LoginPage() {
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState("");
 	const [showPassword, setShowPassword] = useState(false);
+
+	useEffect(() => {
+		const err = searchParams.get("error");
+		if (err === "no_role") {
+			setError("Your account has no role assigned. Please contact support or sign up again.");
+		} else if (err) {
+			setError("An error occurred. Please try again.");
+		}
+	}, [searchParams]);
 
 	const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -39,11 +49,23 @@ export default function LoginPage() {
 
 			await supabase.auth.getSession();
 
-			const { data: profile } = await supabase
+			const { data: profile, error: profileQueryError } = await supabase
 				.from("profiles")
 				.select("role")
 				.eq("id", data.user.id)
 				.maybeSingle();
+
+			if (profileQueryError) {
+				console.error("Profile query error:", profileQueryError);
+				setError("Profile lookup failed: " + profileQueryError.message);
+				return;
+			}
+
+			if (!profile) {
+				console.error("No profile row found for user:", data.user.id);
+				setError("No profile found. Check that the profiles table has a row for your user ID.");
+				return;
+			}
 
 			if (profile?.role === "client") {
 				router.replace("/dashboard/client");
@@ -51,6 +73,9 @@ export default function LoginPage() {
 				router.replace("/dashboard/professional");
 			} else {
 				router.replace("/login?error=no_role");
+				setError(
+					"Your account has no role assigned. Please contact support or sign up again.",
+				);
 			}
 		} catch (err: any) {
 			setError(err.message || "Invalid email or password");
