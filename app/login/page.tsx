@@ -7,6 +7,14 @@ import { createClient } from "@/lib/supabase/client";
 import { Eye, EyeOff } from "lucide-react";
 
 export default function LoginPage() {
+	return (
+		<Suspense fallback={null}>
+			<LoginForm />
+		</Suspense>
+	);
+}
+
+export default function LoginPage() {
 	const router = useRouter();
 	const searchParams = useSearchParams();
 	const supabase = createClient();
