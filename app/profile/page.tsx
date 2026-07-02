@@ -38,11 +38,11 @@ export default function ProfilePage() {
           return;
         }
 
-        const { data, error: profileError } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", user.id)
-          .single();
+		const { data, error: profileError } = await supabase
+			.from("profiles")
+			.select("full_name, phone, country, city, bio, bank_name, bank_account_number, bank_account_name, paystack_recipient_code, role")
+			.eq("id", user.id)
+			.single();
 
         if (profileError) {
           console.error("Failed to load profile:", profileError);
@@ -66,8 +66,13 @@ export default function ProfilePage() {
         // Fetch Nigerian banks from Paystack
         try {
           const res = await fetch("/api/banks");
-          const bankData = await res.json();
-          setBanks(bankData.banks || []);
+          if (!res.ok) {
+            console.error("Failed to fetch banks:", res.status);
+            setBanks([]);
+          } else {
+            const bankData = await res.json();
+            setBanks(bankData.banks || []);
+          }
         } catch (err) {
           console.error("Failed to fetch banks", err);
           setBanks([]);

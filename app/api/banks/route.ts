@@ -23,7 +23,10 @@ export async function GET() {
     }
 
     if (!process.env.PAYSTACK_SECRET_KEY) {
-      return NextResponse.json({ banks: [] });
+      return NextResponse.json(
+        { error: "Payment service not configured" },
+        { status: 500 },
+      );
     }
 
     const controller = new AbortController();

@@ -8,26 +8,12 @@ import { CheckCircle2, Hourglass, Users } from "lucide-react";
 import { firstOf } from "@/lib/db";
 import { CardSkeleton } from "@/components/ui/Skeleton";
 import type { Profile, ProfessionalProfile } from "@/types/database";
+import {
+	getProfessionLabel,
+	SOFTWARE_TOOL_OPTIONS as softwareToolOptions,
+} from "@/lib/constants";
 
 const PAGE_SIZE = 12;
-
-const softwareToolOptions = [
-	"ArcGIS Pro",
-	"QGIS",
-	"ArcGIS Online",
-	"Google Earth Engine",
-	"GRASS GIS",
-	"ENVI",
-	"Global Mapper",
-	"AutoCAD Civil 3D",
-	"Pix4D",
-	"Agisoft Metashape",
-	"GDAL/OGR",
-	"PostGIS",
-	"FME",
-	"Blender GIS",
-	"Other",
-];
 
 type ProfessionalRow = Pick<
 	ProfessionalProfile,
@@ -154,27 +140,6 @@ function ProfessionalsPageContent() {
 			}
 		}
 	}, [filterKey, currentPage, searchParams, router]);
-
-	const getProfessionLabel = (type: string) => {
-		const labels: Record<string, string> = {
-			land_surveyor: "Land Surveyor",
-			gis_analyst: "GIS Analyst",
-			drone_pilot: "Drone/UAV Pilot",
-			cartographer: "Cartographer",
-			photogrammetrist: "Photogrammetrist",
-			lidar_specialist: "LiDAR Specialist",
-			remote_sensing_analyst: "Remote Sensing Analyst",
-			urban_planner: "Urban Planner",
-			spatial_data_scientist: "Spatial Data Scientist",
-			hydrographic_surveyor: "Hydrographic Surveyor",
-			mining_surveyor: "Mining Surveyor",
-			construction_surveyor: "Construction Surveyor",
-			environmental_analyst: "Environmental Analyst",
-			bim_specialist: "BIM Specialist",
-			other: "Other",
-		};
-		return labels[type] || type;
-	};
 
 	const getInitials = (name: string) => {
 		if (!name) return "??";

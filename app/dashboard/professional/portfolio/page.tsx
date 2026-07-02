@@ -10,27 +10,11 @@ import { CardSkeleton } from "@/components/ui/Skeleton";
 import ActionModal from "@/components/ui/ActionModal";
 import { Plus, Pencil, Trash2, UploadCloud } from "lucide-react";
 import type { PortfolioItem } from "@/types/database";
-
-const softwareToolOptions = [
-	"ArcGIS Pro",
-	"QGIS",
-	"ArcGIS Online",
-	"Google Earth Engine",
-	"GRASS GIS",
-	"ENVI",
-	"Global Mapper",
-	"AutoCAD Civil 3D",
-	"Pix4D",
-	"Agisoft Metashape",
-	"GDAL/OGR",
-	"PostGIS",
-	"FME",
-	"Blender GIS",
-	"Other",
-];
-
-const PORTFOLIO_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
-const MAX_PORTFOLIO_IMAGE_SIZE = 5 * 1024 * 1024;
+import {
+	SOFTWARE_TOOL_OPTIONS as softwareToolOptions,
+	PORTFOLIO_IMAGE_TYPES,
+	MAX_PORTFOLIO_IMAGE_SIZE,
+} from "@/lib/constants";
 
 const emptyForm = {
 	title: "",

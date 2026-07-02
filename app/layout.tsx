@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 	},
 	description:
 		"Connect with verified surveying and geospatial professionals. Post jobs, submit proposals, and get work done — securely, with escrow payments.",
-	metadataBase: new URL("https://surveyconnect.vercel.app"),
+	metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://surveyconnect.vercel.app"),
 	keywords: [
 		"surveying",
 		"geospatial",

@@ -33,7 +33,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
     }
 
-    const event = JSON.parse(body);
+    let event: any;
+    try {
+      event = JSON.parse(body);
+    } catch {
+      console.error("Invalid webhook body JSON");
+      return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    }
 
     // Handle successful payment
     if (event.event === "charge.success") {
@@ -116,9 +122,15 @@ export async function POST(request: NextRequest) {
 
       // Prefer contract_id from metadata (set when initiating transfer),
       // fall back to positional parsing of the reference string.
-      let contractId = metadata?.contract_id;
-      if (!contractId && reference && reference.startsWith("SC-REL-")) {
-        contractId = reference.split("-").slice(2, -1).join("-");
+      let contractId: string | undefined = metadata?.contract_id;
+
+      // Parse contractId from reference: SC-REL-{contractId}-{timestamp}
+      // Use regex to extract the contract ID portion between SC-REL- and the last segment
+      if (!contractId && reference && typeof reference === "string") {
+        const match = reference.match(/^SC-REL-(.+)-(\d+)$/);
+        if (match) {
+          contractId = match[1];
+        }
       }
       if (contractId) {
         await supabase

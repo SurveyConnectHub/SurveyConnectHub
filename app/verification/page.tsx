@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { getProfessionLabel } from "@/lib/constants";
 import {
   CheckCircle2,
   Hourglass,
@@ -69,27 +70,6 @@ export default function VerificationPage() {
 
     getData();
   }, [router, supabase]);
-
-  const getProfessionLabel = (type: string) => {
-    const labels: any = {
-      land_surveyor: "Land Surveyor",
-      gis_analyst: "GIS Analyst",
-      drone_pilot: "Drone/UAV Pilot",
-      cartographer: "Cartographer",
-      photogrammetrist: "Photogrammetrist",
-      lidar_specialist: "LiDAR Specialist",
-      remote_sensing_analyst: "Remote Sensing Analyst",
-      urban_planner: "Urban Planner",
-      spatial_data_scientist: "Spatial Data Scientist",
-      hydrographic_surveyor: "Hydrographic Surveyor",
-      mining_surveyor: "Mining Surveyor",
-      construction_surveyor: "Construction Surveyor",
-      environmental_analyst: "Environmental Analyst",
-      bim_specialist: "BIM Specialist",
-      other: "Other",
-    };
-    return labels[type] || type;
-  };
 
   const validateFile = (file: File): string => {
     const ext = file.name.split(".").pop()?.toLowerCase() || "";

@@ -9,8 +9,12 @@ function getSupabaseKey(): string {
 }
 
 export function createClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!url) {
+    throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL environment variable");
+  }
   return createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    url,
     getSupabaseKey(),
   )
 }

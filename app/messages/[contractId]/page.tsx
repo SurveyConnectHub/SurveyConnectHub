@@ -9,7 +9,8 @@ import { Circle, Hourglass, Lock, MessageCircle } from "lucide-react";
 export default function MessagesPage() {
 	const params = useParams();
 	const router = useRouter();
-	const contractId = params.contractId as string;
+	const rawContractId = params.contractId;
+	const contractId = typeof rawContractId === "string" ? rawContractId : Array.isArray(rawContractId) ? rawContractId[0] : undefined;
 
 	const [messages, setMessages] = useState<any[]>([]);
 	const [contract, setContract] = useState<any>(null);

@@ -9,29 +9,12 @@ import { useLoadingState } from "@/hooks/useLoadingState";
 import { LoadingButton } from "@/components/ui/LoadingButton";
 import BackButton from "@/components/ui/BackButton";
 import ActionModal from "@/components/ui/ActionModal";
+import { SOFTWARE_TOOL_OPTIONS as softwareToolOptions } from "@/lib/constants";
 
 type Bank = {
 	code: string;
 	name: string;
 };
-
-const softwareToolOptions = [
-	"ArcGIS Pro",
-	"QGIS",
-	"ArcGIS Online",
-	"Google Earth Engine",
-	"GRASS GIS",
-	"ENVI",
-	"Global Mapper",
-	"AutoCAD Civil 3D",
-	"Pix4D",
-	"Agisoft Metashape",
-	"GDAL/OGR",
-	"PostGIS",
-	"FME",
-	"Blender GIS",
-	"Other",
-];
 
 export default function AccountSettingsPage() {
 	const router = useRouter();
@@ -189,7 +172,23 @@ export default function AccountSettingsPage() {
 				payload.bank_name = profile.bank_name || null;
 				payload.bank_account_number = profile.bank_account_number || null;
 				payload.bank_account_name = profile.bank_account_name || null;
-				payload.paystack_recipient_code = null;
+
+				// Only reset recipient code when bank details actually change
+				const { data: currentProfile } = await supabase
+					.from("profiles")
+					.select("bank_name, bank_account_number, bank_account_name, paystack_recipient_code")
+					.eq("id", user.id)
+					.single();
+
+				if (currentProfile?.paystack_recipient_code) {
+					const bankChanged =
+						payload.bank_name !== currentProfile.bank_name ||
+						payload.bank_account_number !== currentProfile.bank_account_number ||
+						payload.bank_account_name !== currentProfile.bank_account_name;
+					if (bankChanged) {
+						payload.paystack_recipient_code = null;
+					}
+				}
 			}
 
 			const { error: updateError } = await supabase

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { createServiceClient } from "@/lib/supabase/service-client";
 import { Building2, Eye, EyeOff, Map } from "lucide-react";
 
 export default function SignupPage() {
@@ -82,7 +83,8 @@ export default function SignupPage() {
 				return;
 			}
 
-			const { error: profileError } = await supabase.from("profiles").insert({
+			const serviceSupabase = createServiceClient();
+			const { error: profileError } = await serviceSupabase.from("profiles").insert({
 				id: authData.user.id,
 				role: formData.role,
 				full_name: formData.fullName,
@@ -94,7 +96,7 @@ export default function SignupPage() {
 			if (profileError) throw profileError;
 
 			if (formData.role === "client") {
-				const { error: clientError } = await supabase
+				const { error: clientError } = await serviceSupabase
 					.from("client_profiles")
 					.insert({ id: authData.user.id });
 
@@ -102,14 +104,14 @@ export default function SignupPage() {
 
 				router.push("/dashboard/client");
 			} else {
-				const { error: professionalError } = await supabase
+				const { error: professionalError } = await serviceSupabase
 					.from("professional_profiles")
 					.insert({
 						id: authData.user.id,
 						profession_type: "other",
 						years_experience: 0,
 						license_number: null,
-						verification_status: "rejected",
+						verification_status: "unverified",
 					});
 
 				if (professionalError) throw professionalError;

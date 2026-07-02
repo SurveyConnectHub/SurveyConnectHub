@@ -7,42 +7,12 @@ import { createClient } from "@/lib/supabase/client";
 import { CardSkeleton } from "@/components/ui/Skeleton";
 import Image from "next/image";
 import ActionModal from "@/components/ui/ActionModal";
-
-const professionOptions = [
-	"land_surveyor",
-	"gis_analyst",
-	"drone_pilot",
-	"cartographer",
-	"photogrammetrist",
-	"lidar_specialist",
-	"remote_sensing_analyst",
-	"urban_planner",
-	"spatial_data_scientist",
-	"hydrographic_surveyor",
-	"mining_surveyor",
-	"construction_surveyor",
-	"environmental_analyst",
-	"bim_specialist",
-	"other",
-];
-
-const softwareToolOptions = [
-	"ArcGIS Pro",
-	"QGIS",
-	"ArcGIS Online",
-	"Google Earth Engine",
-	"GRASS GIS",
-	"ENVI",
-	"Global Mapper",
-	"AutoCAD Civil 3D",
-	"Pix4D",
-	"Agisoft Metashape",
-	"GDAL/OGR",
-	"PostGIS",
-	"FME",
-	"Blender GIS",
-	"Other",
-];
+import {
+	PROFESSION_OPTIONS as professionOptions,
+	SOFTWARE_TOOL_OPTIONS as softwareToolOptions,
+	PORTFOLIO_IMAGE_TYPES,
+	MAX_PORTFOLIO_IMAGE_SIZE,
+} from "@/lib/constants";
 
 export default function ProfessionalOnboardingPage() {
 	const router = useRouter();
@@ -89,9 +59,6 @@ export default function ProfessionalOnboardingPage() {
 		file_url: "",
 		map_embed_html: "",
 	});
-
-	const PORTFOLIO_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
-	const MAX_PORTFOLIO_IMAGE_SIZE = 5 * 1024 * 1024;
 
 	const buildSignedUrl = useCallback(
 		async (path: string) => {

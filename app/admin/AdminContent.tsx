@@ -4,6 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import type { Profile, ProfessionalProfile } from "@/types/database";
+import { getProfessionLabel } from "@/lib/constants";
 import {
 	Briefcase,
 	CheckCircle2,
@@ -67,27 +68,6 @@ export default function AdminContent({
 		title: string;
 		message: string;
 	} | null>(null);
-
-	const getProfessionLabel = (type: string) => {
-		const labels: Record<string, string> = {
-			land_surveyor: "Land Surveyor",
-			gis_analyst: "GIS Analyst",
-			drone_pilot: "Drone/UAV Pilot",
-			cartographer: "Cartographer",
-			photogrammetrist: "Photogrammetrist",
-			lidar_specialist: "LiDAR Specialist",
-			remote_sensing_analyst: "Remote Sensing Analyst",
-			urban_planner: "Urban Planner",
-			spatial_data_scientist: "Spatial Data Scientist",
-			hydrographic_surveyor: "Hydrographic Surveyor",
-			mining_surveyor: "Mining Surveyor",
-			construction_surveyor: "Construction Surveyor",
-			environmental_analyst: "Environmental Analyst",
-			bim_specialist: "BIM Specialist",
-			other: "Other",
-		};
-		return labels[type] || type;
-	};
 
 	const handleViewDocument = async (pathOrUrl: string) => {
 		try {

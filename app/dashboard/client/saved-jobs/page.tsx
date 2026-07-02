@@ -17,6 +17,7 @@ import {
 	Bookmark,
 } from "lucide-react";
 import type { Job, Profile } from "@/types/database";
+import { getProfessionLabel } from "@/lib/constants";
 
 type SavedJobWithJob = {
 	id: string;
@@ -32,26 +33,6 @@ const formatDate = (date: string) =>
 		month: "short",
 		year: "numeric",
 	});
-
-const getProfessionLabel = (profession: string) => {
-	const labels: Record<string, string> = {
-		land_surveyor: "Land Surveyor",
-		gis_analyst: "GIS Analyst",
-		drone_pilot: "Drone Pilot",
-		cartographer: "Cartographer",
-		photogrammetrist: "Photogrammetrist",
-		lidar_specialist: "LiDAR Specialist",
-		remote_sensing_analyst: "Remote Sensing Analyst",
-		urban_planner: "Urban Planner",
-		spatial_data_scientist: "Spatial Data Scientist",
-		hydrographic_surveyor: "Hydrographic Surveyor",
-		mining_surveyor: "Mining Surveyor",
-		construction_surveyor: "Construction Surveyor",
-		environmental_analyst: "Environmental Analyst",
-		bim_specialist: "BIM Specialist",
-	};
-	return labels[profession] || profession;
-};
 
 const formatBudget = (budget: number, type: string) => {
 	if (type === "hourly") return `$${budget}/hr`;

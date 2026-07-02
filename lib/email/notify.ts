@@ -1,6 +1,6 @@
 import { Resend } from "resend";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { createServiceClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service-client";
 import { firstOf } from "@/lib/db";
 
 export type NotifyEvent =
@@ -181,8 +181,10 @@ export async function sendNotificationEmail(options: {
 		throwError("NEXT_PUBLIC_APP_URL is not configured", 500);
 	}
 
-	const senderEmail =
-		process.env.RESEND_SENDER_EMAIL || "admin@surveyconnecthub.com";
+	const senderEmail = process.env.RESEND_SENDER_EMAIL;
+	if (!senderEmail) {
+		throwError("RESEND_SENDER_EMAIL is not configured", 500);
+	}
 
 	const bodies: Record<NotifyEvent, string> = {
 		contract_activated: `Hi ${safeRecipientName},<br><br>Your contract for <strong>${safeDetails.jobTitle}</strong> is now active. You can communicate with your ${safeDetails.otherParty} via the platform chat.<br><br><a href="${appUrl}/dashboard/${safeDetails.role}/contracts">View Contract</a>`,

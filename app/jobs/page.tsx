@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { getProfessionLabel } from "@/lib/constants";
 import {
 	MapPin,
 	Calendar,
@@ -103,7 +104,7 @@ function JobsPageContent() {
 
 				const { data: profile } = await supabase
 					.from("profiles")
-					.select("*")
+					.select("role, full_name")
 					.eq("id", user.id)
 					.single();
 
@@ -117,7 +118,7 @@ function JobsPageContent() {
 			setLoading(false);
 		};
 
-		getData();
+		getData().catch(() => setLoading(false));
 	}, [fetchJobs, router, supabase]);
 
 	// Reset to page 1 when filters change (intentionally omits currentPage to avoid loops)
@@ -156,27 +157,6 @@ function JobsPageContent() {
 			default:
 				return type || "";
 		}
-	};
-
-	const getProfessionLabel = (type: string) => {
-		const labels: any = {
-			land_surveyor: "Land Surveyor",
-			gis_analyst: "GIS Analyst",
-			drone_pilot: "Drone/UAV Pilot",
-			cartographer: "Cartographer",
-			photogrammetrist: "Photogrammetrist",
-			lidar_specialist: "LiDAR Specialist",
-			remote_sensing_analyst: "Remote Sensing Analyst",
-			urban_planner: "Urban Planner",
-			spatial_data_scientist: "Spatial Data Scientist",
-			hydrographic_surveyor: "Hydrographic Surveyor",
-			mining_surveyor: "Mining Surveyor",
-			construction_surveyor: "Construction Surveyor",
-			environmental_analyst: "Environmental Analyst",
-			bim_specialist: "BIM Specialist",
-			other: "Other",
-		};
-		return labels[type] || type;
 	};
 
 	if (loading) {
