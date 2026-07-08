@@ -17,6 +17,14 @@ function getRedis(): Redis | null {
   }
 }
 
+function getFallbackRate(): number | null {
+  const raw = process.env.FALLBACK_USD_NGN_RATE;
+  if (!raw) return null;
+  const rate = parseFloat(raw);
+  if (isNaN(rate) || rate <= 0) return null;
+  return rate;
+}
+
 async function getExchangeRate(): Promise<number | null> {
   const redis = getRedis();
 
@@ -40,7 +48,14 @@ async function getExchangeRate(): Promise<number | null> {
     });
     const data = await res.json();
     const rate = data?.rates?.NGN;
-    if (!rate || typeof rate !== "number") return null;
+    if (!rate || typeof rate !== "number") {
+      const fallbackRate = getFallbackRate();
+      if (fallbackRate !== null) {
+        console.warn("Live exchange rate fetch returned invalid rate; using FALLBACK_USD_NGN_RATE");
+        return fallbackRate;
+      }
+      return null;
+    }
 
     if (redis) {
       try {
@@ -54,6 +69,11 @@ async function getExchangeRate(): Promise<number | null> {
 
     return rate;
   } catch {
+    const fallbackRate = getFallbackRate();
+    if (fallbackRate !== null) {
+      console.warn("Live exchange rate fetch failed; using FALLBACK_USD_NGN_RATE");
+      return fallbackRate;
+    }
     return null;
   } finally {
     clearTimeout(timeout);
