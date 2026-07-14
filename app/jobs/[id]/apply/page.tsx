@@ -59,77 +59,81 @@ export default function ApplyPage() {
         return;
       }
 
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
 
-      if (!user) {
-        router.push("/login");
-        return;
-      }
+        if (!user) {
+          router.push("/login");
+          return;
+        }
 
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", user.id)
-        .single();
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", user.id)
+          .single();
 
-      if (profile?.role !== "professional") {
-        router.push("/dashboard/client");
-        return;
-      }
+        if (profile?.role !== "professional") {
+          router.push("/dashboard/client");
+          return;
+        }
 
-      const { data: portfolioData, error: portfolioError } = await supabase
-        .from("portfolio_items")
-        .select("id, title, file_url")
-        .eq("professional_id", user.id)
-        .order("created_at", { ascending: false });
+        const { data: portfolioData, error: portfolioError } = await supabase
+          .from("portfolio_items")
+          .select("id, title, file_url")
+          .eq("professional_id", user.id)
+          .order("created_at", { ascending: false });
 
-      if (portfolioData && portfolioData.length > 0) {
-        setPortfolioItems(portfolioData);
-        setSelectedPortfolioItemId(portfolioData[0].id);
-      } else {
-        setPortfolioMode("upload");
-      }
+        if (portfolioData && portfolioData.length > 0) {
+          setPortfolioItems(portfolioData);
+          setSelectedPortfolioItemId(portfolioData[0].id);
+        } else {
+          setPortfolioMode("upload");
+        }
 
-      const { data: jobData, error: jobError } = await supabase
-        .from("jobs")
-        .select("*")
-        .eq("id", jobId)
-        .single();
+        const { data: jobData, error: jobError } = await supabase
+          .from("jobs")
+          .select("*")
+          .eq("id", jobId)
+          .single();
 
-      if (jobError || !jobData) {
-        setError("Job not found.");
+        if (jobError || !jobData) {
+          setError("Job not found.");
+          return;
+        }
+
+        setJob(jobData);
+
+        if (jobData.budget_model === "fixed") {
+          setProposedRate(String(jobData.budget));
+        }
+
+        // Initialize screening answers if there are screening questions
+        if (
+          jobData.screening_questions &&
+          jobData.screening_questions.length > 0
+        ) {
+          setScreeningAnswers(
+            new Array(jobData.screening_questions.length).fill(""),
+          );
+        }
+
+        const { data: existing } = await supabase
+          .from("job_applications")
+          .select("id")
+          .eq("job_id", jobId)
+          .eq("professional_id", user.id)
+          .single();
+
+        if (existing) setAlreadyApplied(true);
+      } catch (error) {
+        console.error("Failed to load apply page:", error);
+        setError("Failed to load this job. Please try again.");
+      } finally {
         setLoading(false);
-        return;
       }
-
-      setJob(jobData);
-
-      if (jobData.budget_model === "fixed") {
-        setProposedRate(String(jobData.budget));
-      }
-
-      // Initialize screening answers if there are screening questions
-      if (
-        jobData.screening_questions &&
-        jobData.screening_questions.length > 0
-      ) {
-        setScreeningAnswers(
-          new Array(jobData.screening_questions.length).fill(""),
-        );
-      }
-
-      const { data: existing } = await supabase
-        .from("job_applications")
-        .select("id")
-        .eq("job_id", jobId)
-        .eq("professional_id", user.id)
-        .single();
-
-      if (existing) setAlreadyApplied(true);
-
-      setLoading(false);
     };
 
     init();

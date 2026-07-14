@@ -6,6 +6,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { userLocale } from "@/lib/datetime";
 import { MapPin, Calendar, DollarSign, Users } from "lucide-react";
 import BackButton from "@/components/ui/BackButton";
 import ActionModal from "@/components/ui/ActionModal";
@@ -53,7 +54,7 @@ export default function ClientJobsPage() {
 	}, [router, supabase]);
 
 	const formatDate = (date: string) =>
-		new Date(date).toLocaleDateString("en-GB", {
+		new Date(date).toLocaleDateString(userLocale(), {
 			day: "numeric",
 			month: "short",
 			year: "numeric",

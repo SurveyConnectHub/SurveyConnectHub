@@ -7,6 +7,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { userLocale } from "@/lib/datetime";
 import BackButton from "@/components/ui/BackButton";
 import {
   MapPin,
@@ -48,7 +49,7 @@ export default function ProfessionalApplicationsPage() {
   }, [router, supabase]);
 
   const formatDate = (date: string) =>
-    new Date(date).toLocaleDateString("en-GB", {
+    new Date(date).toLocaleDateString(userLocale(), {
       day: "numeric",
       month: "short",
       year: "numeric",

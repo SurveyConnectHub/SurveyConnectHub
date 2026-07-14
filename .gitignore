@@ -35,3 +35,13 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# debug / build artifacts
+*.log
+build.log
+next-build.log
+
+# one-off scratch scripts
+test-db.js
+dump.js
+restore.js

@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { userLocale } from "@/lib/datetime";
 import { getProfessionLabel } from "@/lib/constants";
 import {
 	MapPin,
@@ -140,7 +141,7 @@ function JobsPageContent() {
 		type === "hourly" ? `$${budget}/hr` : `$${budget}`;
 
 	const formatDate = (date: string) =>
-		new Date(date).toLocaleDateString("en-GB", {
+		new Date(date).toLocaleDateString(userLocale(), {
 			day: "numeric",
 			month: "short",
 			year: "numeric",

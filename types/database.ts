@@ -9,6 +9,13 @@ export type NotificationType = "application" | "contract" | "message" | "payment
 export type MilestoneStatus = "pending" | "funded" | "submitted" | "approved" | "disputed" | "released";
 export type TransactionType = "escrow_deposit" | "milestone_release" | "refund" | "platform_fee";
 
+export interface ExchangeRateOverride {
+  id: string;
+  rate: number;
+  set_by: string;
+  created_at: string;
+}
+
 export interface Profile {
 	id: string;
 	role: UserRole;

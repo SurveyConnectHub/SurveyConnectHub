@@ -10,6 +10,7 @@ import { MessageSquare, MessageSquareOff, FileCheck } from "lucide-react";
 import { CardSkeleton } from "@/components/ui/Skeleton";
 import BackButton from "@/components/ui/BackButton";
 import { firstOf } from "@/lib/db";
+import { userLocale } from "@/lib/datetime";
 import type { Contract, Job, Profile } from "@/types/database";
 
 type ContractRow = Contract & {
@@ -22,6 +23,7 @@ export default function ProfessionalContractsPage() {
   const [contracts, setContracts] = useState<ContractRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState("");
+  const [completeError, setCompleteError] = useState("");
   const [completing, setCompleting] = useState<string | null>(null);
 
   useEffect(() => {
@@ -64,6 +66,7 @@ export default function ProfessionalContractsPage() {
 
   const handleMarkComplete = async (contractId: string) => {
     setCompleting(contractId);
+    setCompleteError("");
     const supabase = createClient();
     try {
       const { error } = await supabase
@@ -73,6 +76,9 @@ export default function ProfessionalContractsPage() {
 
       if (error) {
         console.error("Failed to mark contract complete:", error);
+        setCompleteError(
+          "Could not mark contract as complete. Please try again or contact support if the issue persists.",
+        );
         return;
       }
 
@@ -114,7 +120,7 @@ export default function ProfessionalContractsPage() {
 
   const formatDate = (date: string | null) =>
     date
-      ? new Date(date).toLocaleDateString("en-GB", {
+      ? new Date(date).toLocaleDateString(userLocale(), {
           day: "numeric",
           month: "short",
           year: "numeric",
@@ -158,6 +164,12 @@ export default function ProfessionalContractsPage() {
           </div>
         )}
 
+        {completeError && (
+          <div className="rounded-xl p-4 mb-6 text-sm font-medium bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800">
+            {completeError}
+          </div>
+        )}
+
         {contracts.length === 0 ? (
           <div className="bg-white dark:bg-gray-900 rounded-2xl p-12 text-center border border-gray-100 dark:border-gray-800">
             <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -181,7 +193,10 @@ export default function ProfessionalContractsPage() {
           <div className="space-y-4">
             {contracts.map((contract) => {
               const isChatLocked = contract.payment_released_at !== null;
-              const budget = Number(contract.agreed_budget ?? 0);
+              const budget =
+                contract.agreed_budget != null
+                  ? Number(contract.agreed_budget)
+                  : null;
 
               return (
                 <div
@@ -244,14 +259,16 @@ export default function ProfessionalContractsPage() {
                     <div className="text-right shrink-0 space-y-3">
                       <div>
                         <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                          ${budget.toLocaleString()}
+                          {budget !== null ? `$${budget.toLocaleString()}` : "—"}
                         </p>
                         <p className="text-xs text-gray-400 dark:text-gray-500">
                           agreed budget
                         </p>
-                        <p className="text-sm font-medium text-green-600 dark:text-green-400 mt-1">
-                          You receive: ${(budget * 0.95).toFixed(2)}
-                        </p>
+                        {budget !== null && (
+                          <p className="text-sm font-medium text-green-600 dark:text-green-400 mt-1">
+                            You receive: ${(budget * 0.95).toFixed(2)}
+                          </p>
+                        )}
                       </div>
 
                       <div className="space-y-2">

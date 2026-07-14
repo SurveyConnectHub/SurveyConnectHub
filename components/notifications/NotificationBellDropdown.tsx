@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Bell, CheckCheck } from "lucide-react";
 import type { Notification } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
+import { userLocale } from "@/lib/datetime";
 
 type NotificationItem = Pick<
 	Notification,
@@ -237,15 +238,12 @@ export default function NotificationBellDropdown({
 	};
 
 	const formatDate = (value: string) =>
-		new Date(value).toLocaleString(
-			typeof navigator !== "undefined" ? navigator.language : undefined,
-			{
-				day: "numeric",
-				month: "short",
-				hour: "2-digit",
-				minute: "2-digit",
-			},
-		);
+		new Date(value).toLocaleString(userLocale(), {
+			day: "numeric",
+			month: "short",
+			hour: "2-digit",
+			minute: "2-digit",
+		});
 
 	return (
 		<div

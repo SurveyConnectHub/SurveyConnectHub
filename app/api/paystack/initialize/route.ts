@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Redis } from "@upstash/redis";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { validateOrigin } from "@/lib/csrf";
 
@@ -17,17 +17,124 @@ function getRedis(): Redis | null {
   }
 }
 
-function getFallbackRate(): number | null {
-  const raw = process.env.FALLBACK_USD_NGN_RATE;
-  if (!raw) return null;
-  const rate = parseFloat(raw);
-  if (isNaN(rate) || rate <= 0) return null;
-  return rate;
+function isValidRate(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value > 0;
+}
+
+async function fetchWithTimeout(
+  url: string,
+  timeoutMs: number,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+// Primary provider: Frankfurter
+async function fetchFrankfurterRate(): Promise<number | null> {
+  try {
+    const res = await fetchWithTimeout(
+      "https://api.frankfurter.dev/v2/rate/USD/NGN",
+      8000,
+    );
+    const data = await res.json();
+    const rate = data?.rate;
+    return isValidRate(rate) ? rate : null;
+  } catch {
+    return null;
+  }
+}
+
+// Secondary provider: ExchangeRate-API
+async function fetchExchangeRateApi(): Promise<number | null> {
+  try {
+    const res = await fetchWithTimeout(
+      "https://open.er-api.com/v6/latest/USD",
+      8000,
+    );
+    const data = await res.json();
+    if (data?.result !== "success") return null;
+    const rate = data?.rates?.NGN;
+    return isValidRate(rate) ? rate : null;
+  } catch {
+    return null;
+  }
+}
+
+// Tertiary provider: MoneyConvert (original provider, now last-resort live source)
+async function fetchMoneyConvertRate(): Promise<number | null> {
+  try {
+    const res = await fetchWithTimeout(
+      "https://cdn.moneyconvert.net/api/latest.json",
+      8000,
+    );
+    const data = await res.json();
+    const rate = data?.rates?.NGN;
+    return isValidRate(rate) ? rate : null;
+  } catch {
+    return null;
+  }
+}
+
+// Last-resort: admin-set DB override (NOT cached in Redis)
+async function getAdminOverrideRate(): Promise<number | null> {
+  try {
+    const supabase = createServiceClient();
+    const { data, error } = await supabase
+      .from("exchange_rate_overrides")
+      .select("rate")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error || !data) return null;
+    const rate = Number(data.rate);
+    if (!isValidRate(rate)) return null;
+    console.warn(`Using admin-set exchange rate override: ${rate}`);
+    return rate;
+  } catch (error) {
+    console.error("Failed to fetch admin exchange rate override:", error);
+    return null;
+  }
+}
+
+// Final fallback: alert admin that all sources failed
+async function notifyAdminAllSourcesFailed(): Promise<void> {
+  try {
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL;
+    const secret = process.env.ADMIN_ALERT_SECRET;
+    if (!baseUrl || !secret) {
+      console.error(
+        "Cannot send admin alert: NEXT_PUBLIC_APP_URL or ADMIN_ALERT_SECRET not configured",
+      );
+      return;
+    }
+
+    await fetch(`${baseUrl}/api/admin/alerts`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-admin-alert-secret": secret,
+      },
+      body: JSON.stringify({
+        type: "exchange_rate_all_sources_failed",
+        message:
+          "All exchange rate sources failed (Frankfurter, ExchangeRate-API, MoneyConvert) and no admin override is set. Payments are currently blocked until an admin sets a manual rate at /admin/exchange-rate.",
+      }),
+    });
+  } catch (error) {
+    console.error("Failed to send admin alert for exchange rate failure:", error);
+  }
 }
 
 async function getExchangeRate(): Promise<number | null> {
   const redis = getRedis();
 
+  // Stage 1: Redis cache (sits in front of the whole live-provider chain)
   if (redis) {
     try {
       const cached = await redis.get<number>("exchange_rate_usd_ngn");
@@ -35,49 +142,40 @@ async function getExchangeRate(): Promise<number | null> {
         return cached;
       }
     } catch {
-      // Redis unavailable, proceed to API fetch
+      // Redis unavailable, proceed to live providers
     }
   }
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
+  // Stages 2-4: live provider fallback chain
+  let liveRate: number | null = null;
 
-  try {
-    const res = await fetch("https://cdn.moneyconvert.net/api/latest.json", {
-      signal: controller.signal,
-    });
-    const data = await res.json();
-    const rate = data?.rates?.NGN;
-    if (!rate || typeof rate !== "number") {
-      const fallbackRate = getFallbackRate();
-      if (fallbackRate !== null) {
-        console.warn("Live exchange rate fetch returned invalid rate; using FALLBACK_USD_NGN_RATE");
-        return fallbackRate;
-      }
-      return null;
-    }
+  if (liveRate === null) liveRate = await fetchFrankfurterRate();
+  if (liveRate === null) liveRate = await fetchExchangeRateApi();
+  if (liveRate === null) liveRate = await fetchMoneyConvertRate();
 
+  if (liveRate !== null) {
+    // Cache successful live-provider rates only (never admin overrides)
     if (redis) {
       try {
-        await redis.set("exchange_rate_usd_ngn", rate, {
+        await redis.set("exchange_rate_usd_ngn", liveRate, {
           ex: CACHE_TTL_SECONDS,
         });
       } catch {
         // Non-critical
       }
     }
-
-    return rate;
-  } catch {
-    const fallbackRate = getFallbackRate();
-    if (fallbackRate !== null) {
-      console.warn("Live exchange rate fetch failed; using FALLBACK_USD_NGN_RATE");
-      return fallbackRate;
-    }
-    return null;
-  } finally {
-    clearTimeout(timeout);
+    return liveRate;
   }
+
+  // Stage 5: admin-set override (NOT cached — always re-check live first past TTL)
+  const overrideRate = await getAdminOverrideRate();
+  if (overrideRate !== null) {
+    return overrideRate;
+  }
+
+  // Stage 6: all sources failed — alert admin and return null (caller surfaces 500)
+  await notifyAdminAllSourcesFailed();
+  return null;
 }
 
 export async function POST(request: NextRequest) {

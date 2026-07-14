@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Bell } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { userLocale } from "@/lib/datetime";
 import BackButton from "@/components/ui/BackButton";
 
 type NotificationItem = {
@@ -128,7 +129,7 @@ export default function NotificationsPage() {
   };
 
   const formatDate = (value: string) =>
-    new Date(value).toLocaleString("en-GB", {
+    new Date(value).toLocaleString(userLocale(), {
       day: "numeric",
       month: "short",
       year: "numeric",

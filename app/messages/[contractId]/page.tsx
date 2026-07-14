@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { userLocale } from "@/lib/datetime";
 import { Circle, Hourglass, Lock, MessageCircle } from "lucide-react";
 
 export default function MessagesPage() {
@@ -187,14 +188,14 @@ export default function MessagesPage() {
 	};
 
 	const formatTime = (date: string) => {
-		return new Date(date).toLocaleTimeString("en-GB", {
+		return new Date(date).toLocaleTimeString(userLocale(), {
 			hour: "2-digit",
 			minute: "2-digit",
 		});
 	};
 
 	const formatDate = (date: string) => {
-		return new Date(date).toLocaleDateString("en-GB", {
+		return new Date(date).toLocaleDateString(userLocale(), {
 			day: "numeric",
 			month: "short",
 			year: "numeric",

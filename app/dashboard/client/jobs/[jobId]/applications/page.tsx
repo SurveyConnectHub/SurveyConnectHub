@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { userLocale } from "@/lib/datetime";
 import type { Job, JobApplication, Profile } from "@/types/database";
 import BackButton from "@/components/ui/BackButton";
 import {
@@ -130,7 +131,7 @@ export default function JobApplicationsPage() {
   };
 
   const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString("en-GB", {
+    return new Date(date).toLocaleDateString(userLocale(), {
       day: "numeric",
       month: "short",
       year: "numeric",

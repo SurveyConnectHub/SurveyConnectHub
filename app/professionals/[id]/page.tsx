@@ -5,6 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
+import { userLocale } from "@/lib/datetime";
 import { ProfileSkeleton, CardSkeleton } from "@/components/ui/Skeleton";
 import BackButton from "@/components/ui/BackButton";
 import ActionModal from "@/components/ui/ActionModal";
@@ -927,7 +928,7 @@ export default function ProfessionalProfilePage() {
 										</p>
 									)}
 									<p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-										{new Date(review.created_at).toLocaleDateString("en-GB", {
+										{new Date(review.created_at).toLocaleDateString(userLocale(), {
 											day: "numeric",
 											month: "short",
 											year: "numeric",
