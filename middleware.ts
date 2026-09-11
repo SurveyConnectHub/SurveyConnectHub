@@ -9,6 +9,10 @@ function getEnvOrThrow(key: string): string {
 	return value;
 }
 
+const AUTH_TIMEOUT_MS = 3500;
+const AUTH_TIMEOUT_SENTINEL = Symbol("auth-token-timeout");
+const SUPABASE_AUTH_COOKIE = /^sb-.+-auth-token$/;
+
 export async function middleware(request: NextRequest) {
 	let supabaseResponse = NextResponse.next({
 		request,
@@ -37,13 +41,36 @@ export async function middleware(request: NextRequest) {
 	});
 
 	let user = null;
-	try {
-		const {
-			data: { user: authUser },
-		} = await supabase.auth.getUser();
-		user = authUser;
-	} catch {
-		// Supabase is down or unreachable — treat as unauthenticated
+
+	const hasAuthCookie = request.cookies
+		.getAll()
+		.some(({ name }) => SUPABASE_AUTH_COOKIE.test(name));
+
+	if (hasAuthCookie) {
+		try {
+			const {
+				data: { user: authUser },
+			} = await Promise.race([
+				supabase.auth.getUser(),
+				new Promise<never>((_, reject) =>
+					setTimeout(() => reject(AUTH_TIMEOUT_SENTINEL), AUTH_TIMEOUT_MS),
+				),
+			]);
+			user = authUser;
+		} catch (error) {
+			if (error !== AUTH_TIMEOUT_SENTINEL) {
+				for (const cookie of request.cookies.getAll()) {
+					if (SUPABASE_AUTH_COOKIE.test(cookie.name)) {
+						request.cookies.set(cookie.name, "");
+						supabaseResponse.cookies.set(cookie.name, "", {
+							path: "/",
+							maxAge: 0,
+						});
+					}
+				}
+			}
+			user = null;
+		}
 	}
 
 	let profile: { role?: string | null; is_admin?: boolean | null } | null =
