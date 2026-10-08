@@ -22,7 +22,7 @@ export async function checkRateLimit(
       console.warn("Rate limiting disabled: UPSTASH_REDIS_REST_URL or UPSTASH_REDIS_REST_TOKEN not configured");
       rateLimitWarnedOnce = true;
     }
-    return true;
+    return false;
   }
 
   const windowKey = `${limit}:${windowSeconds}`;
@@ -38,6 +38,6 @@ export async function checkRateLimit(
     return success;
   } catch (error) {
     console.error("Rate limit check failed:", error);
-    return true;
+    return false;
   }
 }

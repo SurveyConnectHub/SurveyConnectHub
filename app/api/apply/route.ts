@@ -3,6 +3,7 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { validateOrigin } from "@/lib/csrf";
 import { sendNotificationEmail } from "@/lib/email/notify";
+import { verifyTurnstileToken } from "@/lib/turnstile";
 
 export async function POST(request: NextRequest) {
 	if (!validateOrigin(request)) {
@@ -35,6 +36,14 @@ export async function POST(request: NextRequest) {
 	}
 
 	const body = await request.json().catch(() => ({}));
+	if (
+		!(await verifyTurnstileToken(
+			body?.turnstileToken,
+			request.headers.get("x-forwarded-for")?.split(",")[0]?.trim(),
+		))
+	) {
+		return NextResponse.json({ error: "Bot verification failed" }, { status: 403 });
+	}
 	const {
 		jobId,
 		coverLetter,

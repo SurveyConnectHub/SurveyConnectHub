@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { Eye, EyeOff } from "lucide-react";
+import { Turnstile } from "@marsidev/react-turnstile";
 
 export default function LoginForm() {
 	const router = useRouter();
@@ -19,6 +20,7 @@ export default function LoginForm() {
 	const [error, setError] = useState("");
 	const [showPassword, setShowPassword] = useState(false);
 	const [resetSuccess, setResetSuccess] = useState(false);
+	const [turnstileToken, setTurnstileToken] = useState("");
 
 	useEffect(() => {
 		setResetSuccess(searchParams.get("reset") === "success");
@@ -37,6 +39,10 @@ export default function LoginForm() {
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 		setError("");
+		if (!turnstileToken) {
+			setError("Please complete the bot verification.");
+			return;
+		}
 		setLoading(true);
 
 		try {
@@ -44,6 +50,7 @@ export default function LoginForm() {
 				await supabase.auth.signInWithPassword({
 					email: formData.email,
 					password: formData.password,
+					options: { captchaToken: turnstileToken },
 				});
 
 			if (signInError) throw signInError;
@@ -170,6 +177,12 @@ export default function LoginForm() {
 					</div>
 
 					{/* Submit Button */}
+					<Turnstile
+						siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ""}
+						onSuccess={setTurnstileToken}
+						onExpire={() => setTurnstileToken("")}
+						onError={() => setTurnstileToken("")}
+					/>
 					<button
 						type="submit"
 						disabled={loading}

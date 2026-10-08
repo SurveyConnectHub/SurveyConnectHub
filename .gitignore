@@ -48,3 +48,10 @@ restore.js
 new design
 process and report.txt
 opencode-dev-pid.txt
+
+# local security review artifacts
+SECURITY-REVIEW.md
+security-review*.txt
+.security-review/
+report.md
+security.md

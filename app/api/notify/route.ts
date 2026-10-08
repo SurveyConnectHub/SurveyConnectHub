@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { sendNotificationEmail, type NotifyPayload } from "@/lib/email/notify";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 export async function POST(request: NextRequest) {
 	const supabase = await createClient();
@@ -9,6 +10,10 @@ export async function POST(request: NextRequest) {
 	} = await supabase.auth.getUser();
 	if (!user) {
 		return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+	}
+
+	if (!(await checkRateLimit(`notify:${user.id}`, 5, 60))) {
+		return NextResponse.json({ error: "Too many requests" }, { status: 429 });
 	}
 
 	let payload: NotifyPayload | null = null;

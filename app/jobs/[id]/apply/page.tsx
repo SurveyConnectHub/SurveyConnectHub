@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Download, PartyPopper } from "lucide-react";
+import { Turnstile } from "@marsidev/react-turnstile";
 import BackButton from "@/components/ui/BackButton";
 import {
 	applyAttachmentError,
@@ -64,6 +65,7 @@ export default function ApplyPage() {
   const [briefUrl, setBriefUrl] = useState<string | null>(null);
   const [briefLoading, setBriefLoading] = useState(false);
   const [briefError, setBriefError] = useState("");
+  const [turnstileToken, setTurnstileToken] = useState("");
 
   useEffect(() => {
     const init = async () => {
@@ -183,6 +185,10 @@ export default function ApplyPage() {
   };
 
   const handleSubmit = async () => {
+    if (!turnstileToken) {
+      setError("Please complete the bot verification.");
+      return;
+    }
     if (
       !coverLetter.trim() ||
       !proposedRate ||
@@ -270,6 +276,7 @@ export default function ApplyPage() {
               ? selectedPortfolioItemId
               : null,
           portfolioAttachmentUrl,
+          turnstileToken,
         }),
       });
 
@@ -689,6 +696,12 @@ export default function ApplyPage() {
             )}
 
             {/* Submit */}
+            <Turnstile
+              siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ""}
+              onSuccess={setTurnstileToken}
+              onExpire={() => setTurnstileToken("")}
+              onError={() => setTurnstileToken("")}
+            />
             <button
               onClick={handleSubmit}
               disabled={submitting}

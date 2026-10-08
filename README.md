@@ -37,7 +37,9 @@ Copy `.env.example` to `.env.local` and fill in the values:
 | `UPSTASH_REDIS_REST_URL` | Upstash Redis REST URL |
 | `UPSTASH_REDIS_REST_TOKEN` | Upstash Redis REST token |
 | `EXCHANGE_RATE_API_KEY` | API key from [exchangerate-api.com](https://www.exchangerate-api.com) for USD→NGN exchange rates |
-| `NEXT_PUBLIC_APP_URL` | Deployed app URL (e.g. `https://surveyconnect.vercel.app`) |
+| `NEXT_PUBLIC_APP_URL` | The canonical URL where this SurveyConnectHub deployment is hosted |
+| `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Cloudflare Turnstile public site key for this app's allowed hostnames |
+| `TURNSTILE_SECRET_KEY` | Cloudflare Turnstile server secret; keep private and never expose it client-side |
 
 ### Setup Steps
 
@@ -63,6 +65,29 @@ Copy `.env.example` to `.env.local` and fill in the values:
    These commands must be run from the project root with the `supabase/migrations/` folder present. Migrations are numbered by date and must be applied in ascending order.
 
 4. **Open [http://localhost:3000](http://localhost:3000)** in your browser.
+
+5. **Configure bot protection (required before testing protected flows):**
+   - Create a Cloudflare Turnstile widget for the actual deployment hostname and
+     `localhost` if local testing is required. Do not use a hostname that is not
+     owned or operated for this deployment.
+   - Set `NEXT_PUBLIC_TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY` in the
+     deployment environment and local `.env.local` where applicable.
+   - For the current deployment, the existing widget should allow
+     `www.surveyconnecthub.com` and `survey-connect-hub.vercel.app`. The public
+     site key is `0x4AAAAAAFRsmxjU-U_dZObs`; keep the secret key server-side only.
+   - Configure the same CAPTCHA provider in Supabase Authentication.
+   - Verify login, signup, password recovery, password reset, and job
+     application flows in a browser. The repository does not claim that these
+     external services are configured or that production smoke tests have
+     passed.
+
+### Security handoff
+
+The implementation includes server-side Turnstile verification and CSP
+allowances for Turnstile resources. Before handoff, the deployment owner must
+provide the actual application URL, configure the Cloudflare and Supabase
+settings, apply the database migrations, and run the browser smoke tests.
+Do not send secret keys in this document or commit them to Git.
 
 ## Project Structure
 

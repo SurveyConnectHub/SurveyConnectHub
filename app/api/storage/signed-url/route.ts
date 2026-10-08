@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
   if (bucket === "job-briefs") {
     const { data: job, error: jobError } = await supabase
       .from("jobs")
-      .select("id")
+      .select("id, client_id")
       .eq("brief_attachment_url", normalizedPath)
       .maybeSingle();
 
@@ -46,6 +46,17 @@ export async function POST(request: NextRequest) {
         { error: "Brief not found or access denied" },
         { status: 404 },
       );
+    }
+
+    const { data: application } = await supabase
+      .from("job_applications")
+      .select("id")
+      .eq("job_id", job.id)
+      .eq("professional_id", user.id)
+      .maybeSingle();
+
+    if (job.client_id !== user.id && !application) {
+      return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
   }
 

@@ -290,6 +290,7 @@ export default function AdminContent({
 							details: {
 								professionalName,
 								professionType,
+								professionalId,
 							},
 						}),
 					});

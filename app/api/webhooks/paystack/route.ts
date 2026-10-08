@@ -1,4 +1,4 @@
-import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 
@@ -41,6 +41,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
     }
 
+    const eventReference =
+      event.data?.reference ??
+      crypto.createHash("sha256").update(body).digest("hex");
+    const eventKey = `${event.event}:${eventReference}`;
+    const supabase = createServiceClient();
+    const { error: eventInsertError } = await supabase
+      .from("paystack_webhook_events")
+      .insert({
+        event_key: eventKey,
+        event_name: String(event.event ?? "unknown"),
+        reference: event.data?.reference ?? null,
+      });
+    if (eventInsertError?.code === "23505") {
+      return NextResponse.json({ received: true, duplicate: true });
+    }
+    if (eventInsertError) {
+      console.error("Failed to record Paystack webhook event:", eventInsertError);
+      return NextResponse.json({ error: "Webhook unavailable" }, { status: 503 });
+    }
+
     // Handle successful payment
     if (event.event === "charge.success") {
       const { reference, metadata, status } = event.data;
@@ -55,8 +75,6 @@ export async function POST(request: NextRequest) {
       if (!contractId) {
         return NextResponse.json({ received: true });
       }
-
-      const supabase = await createClient();
 
       // Milestone funding path — flip milestone to "funded" if still pending
       // (verify route may have already done this).
@@ -90,8 +108,7 @@ export async function POST(request: NextRequest) {
               console.error("Webhook milestone fund failed:", milestoneUpdateError);
             } else {
               try {
-                const serviceClient = createServiceClient();
-                await serviceClient.from("transactions").insert({
+                await supabase.from("transactions").insert({
                   contract_id: contractId,
                   milestone_id: milestoneId,
                   type: "escrow_deposit",
@@ -170,7 +187,7 @@ export async function POST(request: NextRequest) {
       event.event === "transfer.reversed"
     ) {
       const { reference, metadata } = event.data || {};
-      const supabase = await createClient();
+      const supabase = createServiceClient();
 
       // Prefer contract_id from metadata (set when initiating transfer),
       // fall back to positional parsing of the reference string.

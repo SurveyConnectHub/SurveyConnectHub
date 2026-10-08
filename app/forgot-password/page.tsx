@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import BackButton from "@/components/ui/BackButton";
+import { Turnstile } from "@marsidev/react-turnstile";
 
 export default function ForgotPasswordPage() {
 	const supabase = createClient();
@@ -11,10 +12,15 @@ export default function ForgotPasswordPage() {
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState("");
 	const [sent, setSent] = useState(false);
+	const [turnstileToken, setTurnstileToken] = useState("");
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 		setError("");
+		if (!turnstileToken) {
+			setError("Please complete the bot verification.");
+			return;
+		}
 		setLoading(true);
 
 		try {
@@ -22,6 +28,7 @@ export default function ForgotPasswordPage() {
 				email.trim(),
 				{
 					redirectTo: `${window.location.origin}/reset-password`,
+					captchaToken: turnstileToken,
 				},
 			);
 			if (resetError) throw resetError;
@@ -94,6 +101,12 @@ export default function ForgotPasswordPage() {
 							/>
 						</div>
 
+						<Turnstile
+							siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ""}
+							onSuccess={setTurnstileToken}
+							onExpire={() => setTurnstileToken("")}
+							onError={() => setTurnstileToken("")}
+						/>
 						<button
 							type="submit"
 							disabled={loading}

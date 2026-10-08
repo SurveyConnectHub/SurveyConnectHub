@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Eye, EyeOff } from "lucide-react";
 import BackButton from "@/components/ui/BackButton";
+import { Turnstile } from "@marsidev/react-turnstile";
 
 export default function ResetPasswordPage() {
 	const router = useRouter();
@@ -19,6 +20,7 @@ export default function ResetPasswordPage() {
 	const [error, setError] = useState("");
 	const [showPassword, setShowPassword] = useState(false);
 	const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+	const [turnstileToken, setTurnstileToken] = useState("");
 
 	const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -27,6 +29,10 @@ export default function ResetPasswordPage() {
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 		setError("");
+		if (!turnstileToken) {
+			setError("Please complete the bot verification.");
+			return;
+		}
 
 		if (formData.password.length < 8) {
 			setError("Password must be at least 8 characters");
@@ -40,6 +46,15 @@ export default function ResetPasswordPage() {
 		setLoading(true);
 
 		try {
+			const verificationResponse = await fetch("/api/auth/verify-turnstile", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ token: turnstileToken }),
+			});
+			if (!verificationResponse.ok) {
+				throw new Error("Bot verification failed");
+			}
+
 			const { error: updateError } = await supabase.auth.updateUser({
 				password: formData.password,
 			});
@@ -124,6 +139,12 @@ export default function ResetPasswordPage() {
 								required
 								placeholder="Repeat your new password"
 								className="w-full px-4 py-3 pr-11 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800 placeholder-gray-400 dark:placeholder-gray-500 dark:placeholder-gray-400"
+							/>
+							<Turnstile
+								siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ""}
+								onSuccess={setTurnstileToken}
+								onExpire={() => setTurnstileToken("")}
+								onError={() => setTurnstileToken("")}
 							/>
 							<button
 								type="button"

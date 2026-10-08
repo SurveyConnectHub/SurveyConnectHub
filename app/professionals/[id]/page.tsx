@@ -222,12 +222,12 @@ export default function ProfessionalProfilePage() {
 
 				const [professionalResult, profileResult] = await Promise.all([
 					supabase
-						.from("professional_profiles")
+						.from("public_professional_profiles")
 						.select("*")
 						.eq("id", id)
 						.maybeSingle(),
 					supabase
-						.from("profiles")
+						.from("public_profiles")
 						.select("full_name, country, bio")
 						.eq("id", id)
 						.maybeSingle(),

@@ -14,7 +14,6 @@ export function validateOrigin(request: Request): boolean {
       .forEach((value) => allowedOrigins.add(value));
   }
   allowedOrigins.add("http://localhost:3000");
-  allowedOrigins.add("https://surveyconnect.vercel.app");
   if (allowedOrigins.size === 0) return false;
   const requestOrigin = origin ?? new URL(request.url).origin;
   return allowedOrigins.has(requestOrigin);

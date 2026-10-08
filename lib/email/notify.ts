@@ -26,7 +26,7 @@ const requiredDetails: Record<NotifyEvent, string[]> = {
 	job_completed: ["jobTitle", "contractId"],
 	payment_released: ["amount", "jobTitle", "contractId"],
 	application_received: ["jobTitle", "applicantName", "jobId"],
-	verification_approved: ["professionalName", "professionType"],
+	verification_approved: ["professionalName", "professionType", "professionalId"],
 };
 
 const subjects: Record<NotifyEvent, string> = {
@@ -103,7 +103,23 @@ export async function sendNotificationEmail(options: {
 	}
 
 	if (event === "verification_approved") {
-		// No contract or job ownership check required for verification emails.
+		const { data: caller } = await serviceClient
+			.from("profiles")
+			.select("is_admin")
+			.eq("id", userId)
+			.single();
+		const professionalId = details.professionalId;
+		if (!caller?.is_admin || !professionalId) {
+			throwError("Forbidden", 403);
+		}
+		const { data: target } = await serviceClient
+			.from("profiles")
+			.select("email, full_name")
+			.eq("id", professionalId)
+			.single();
+		if (!target || target.email !== recipientEmail) {
+			throwError("Recipient mismatch", 403);
+		}
 	} else if (event === "application_received") {
 		const jobId = details.jobId;
 		const { data: job, error: jobError } = await serviceClient

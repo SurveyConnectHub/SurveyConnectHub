@@ -5,10 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { CheckCircle2, Hourglass, Users } from "lucide-react";
-import { firstOf } from "@/lib/db";
 import { CardSkeleton } from "@/components/ui/Skeleton";
 import BackButton from "@/components/ui/BackButton";
-import type { Profile, ProfessionalProfile } from "@/types/database";
 import {
 	getProfessionLabel,
 	SOFTWARE_TOOL_OPTIONS as softwareToolOptions,
@@ -16,21 +14,16 @@ import {
 
 const PAGE_SIZE = 12;
 
-type ProfessionalRow = Pick<
-	ProfessionalProfile,
-	| "id"
-	| "profession_type"
-	| "secondary_profession"
-	| "license_number"
-	| "years_experience"
-	| "verification_status"
-	| "software_tools"
-	| "created_at"
-> & {
-	profiles:
-		| Pick<Profile, "full_name" | "country">
-		| Pick<Profile, "full_name" | "country">[]
-		| null;
+type ProfessionalRow = {
+	id: string;
+	profession_type: string;
+	secondary_profession: string | null;
+	years_experience: number | null;
+	verification_status: string;
+	software_tools: string[] | null;
+	created_at: string;
+	full_name: string | null;
+	country: string | null;
 };
 
 function ProfessionalsPageContent() {
@@ -64,20 +57,17 @@ function ProfessionalsPageContent() {
 				}
 				setProfile(null);
 
-				let query = supabase.from("professional_profiles").select(
+				let query = supabase.from("public_professional_profiles").select(
 					`
 					id,
 					profession_type,
 					secondary_profession,
-					license_number,
 					years_experience,
 					verification_status,
 					software_tools,
 					created_at,
-					profiles (
-						full_name,
-						country
-					)
+					full_name,
+					country
 				`,
 					{ count: "exact" },
 				);
@@ -85,7 +75,7 @@ function ProfessionalsPageContent() {
 				if (search.trim()) {
 					const term = search.trim();
 					query = query.or(
-						`profiles.full_name.ilike.%${term}%,profession_type.ilike.%${term}%`,
+						`full_name.ilike.%${term}%,profession_type.ilike.%${term}%`,
 					);
 				}
 
@@ -264,7 +254,7 @@ function ProfessionalsPageContent() {
 				) : (
 					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 						{professionals.map((prof) => {
-							const profileInfo = firstOf(prof.profiles);
+							const profileInfo = prof;
 							return (
 								<div
 									key={prof.id}
@@ -330,12 +320,6 @@ function ProfessionalsPageContent() {
 												)}
 											</div>
 										)}
-
-									{prof.license_number && (
-										<p className="text-xs text-gray-400 dark:text-gray-500 mb-4">
-											License: {prof.license_number}
-										</p>
-									)}
 
 									<Link
 										href={`/professionals/${prof.id}`}

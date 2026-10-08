@@ -6,9 +6,11 @@
 		"dev": "node --max-old-space-size=4096 ./node_modules/next/dist/bin/next dev",
 		"build": "node --max-old-space-size=4096 ./node_modules/next/dist/bin/next build",
 		"start": "next start",
-		"lint": "node --max-old-space-size=4096 ./node_modules/next/dist/bin/next lint"
+		"lint": "node --max-old-space-size=4096 ./node_modules/next/dist/bin/next lint",
+		"test": "vitest run"
 	},
 	"dependencies": {
+		"@marsidev/react-turnstile": "^1.6.1",
 		"@supabase/ssr": "^0.9.0",
 		"@supabase/supabase-js": "^2.99.3",
 		"@upstash/ratelimit": "^2.0.8",
@@ -21,18 +23,20 @@
 		"resend": "^6.12.2"
 	},
 	"devDependencies": {
-		"@types/node": "^20",
+		"@types/node": "^22.20.5",
 		"@types/react": "^19.0.0",
 		"@types/react-dom": "^19.0.0",
 		"autoprefixer": "^10.0.1",
 		"eslint": "^8.57.1",
 		"eslint-config-next": "^15.5.15",
-		"postcss": "8.5.12",
+		"postcss": "8.5.29",
 		"tailwindcss": "^3.3.0",
-		"typescript": "^5"
+		"typescript": "^5",
+		"vite": "^8.3.3",
+		"vitest": "^5.0.3"
 	},
 	"overrides": {
-		"postcss": "8.5.12",
+		"postcss": "8.5.29",
 		"svix": "1.92.2"
 	}
 }

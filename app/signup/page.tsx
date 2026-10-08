@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { createServiceClient } from "@/lib/supabase/service-client";
 import { JOB_TYPE_OPTIONS } from "@/lib/constants";
 import { Building2, Eye, EyeOff, Map } from "lucide-react";
+import { Turnstile } from "@marsidev/react-turnstile";
 
 const DISCIPLINE_PRESETS = JOB_TYPE_OPTIONS.filter((d) => d !== "Other");
 
@@ -33,6 +34,7 @@ export default function SignupPage() {
 	const [error, setError] = useState("");
 	const [showPassword, setShowPassword] = useState(false);
 	const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+	const [turnstileToken, setTurnstileToken] = useState("");
 
 	const toggleDiscipline = (discipline: string) => {
 		setFormData((prev) => ({
@@ -107,6 +109,10 @@ export default function SignupPage() {
 			setError("Please agree to the Terms of Service and Privacy Policy");
 			return;
 		}
+		if (!turnstileToken) {
+			setError("Please complete the bot verification.");
+			return;
+		}
 
 		setLoading(true);
 
@@ -114,6 +120,7 @@ export default function SignupPage() {
 			const { data: authData, error: authError } = await supabase.auth.signUp({
 				email: formData.email,
 				password: formData.password,
+				options: { captchaToken: turnstileToken },
 			});
 
 			if (authError) throw authError;
@@ -510,6 +517,12 @@ export default function SignupPage() {
 					</label>
 
 					{/* Submit Button */}
+					<Turnstile
+						siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ""}
+						onSuccess={setTurnstileToken}
+						onExpire={() => setTurnstileToken("")}
+						onError={() => setTurnstileToken("")}
+					/>
 					<button
 						type="submit"
 						disabled={loading}
