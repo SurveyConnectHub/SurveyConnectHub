@@ -13,10 +13,38 @@ const AUTH_TIMEOUT_MS = 3500;
 const AUTH_TIMEOUT_SENTINEL = Symbol("auth-token-timeout");
 const SUPABASE_AUTH_COOKIE = /^sb-.+-auth-token$/;
 
+function createSecurityHeaders(nonce: string): Headers {
+	const headers = new Headers();
+	headers.set(
+		"Content-Security-Policy",
+		[
+			"default-src 'self'",
+			"base-uri 'self'",
+			"object-src 'none'",
+			"frame-ancestors 'none'",
+			"form-action 'self'",
+			"upgrade-insecure-requests",
+			`script-src 'self' 'nonce-${nonce}' https://challenges.cloudflare.com`,
+			"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+			"img-src 'self' data: blob: https:",
+			"font-src 'self' data: https://fonts.gstatic.com",
+			"connect-src 'self' https://*.supabase.co https://api.paystack.co https://challenges.cloudflare.com",
+			"frame-src 'self' https://challenges.cloudflare.com",
+		].join("; "),
+	);
+	return headers;
+}
+
 export async function middleware(request: NextRequest) {
+	const nonce = crypto.randomUUID().replace(/-/g, "");
+	const requestHeaders = new Headers(request.headers);
+	requestHeaders.set("x-nonce", nonce);
 	let supabaseResponse = NextResponse.next({
-		request,
+		request: { headers: requestHeaders },
 	});
+	createSecurityHeaders(nonce).forEach((value, key) =>
+		supabaseResponse.headers.set(key, value),
+	);
 
 	const supabaseUrl = getEnvOrThrow("NEXT_PUBLIC_SUPABASE_URL");
 	const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? getEnvOrThrow("NEXT_PUBLIC_SUPABASE_ANON_KEY");
@@ -31,8 +59,11 @@ export async function middleware(request: NextRequest) {
 					request.cookies.set(name, value),
 				);
 				supabaseResponse = NextResponse.next({
-					request,
+					request: { headers: requestHeaders },
 				});
+				createSecurityHeaders(nonce).forEach((value, key) =>
+					supabaseResponse.headers.set(key, value),
+				);
 				cookiesToSet.forEach(({ name, value, options }) =>
 					supabaseResponse.cookies.set(name, value, options),
 				);

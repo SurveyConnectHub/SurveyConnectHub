@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Download, PartyPopper } from "lucide-react";
-import { Turnstile } from "@marsidev/react-turnstile";
+import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import BackButton from "@/components/ui/BackButton";
 import {
 	applyAttachmentError,
@@ -66,6 +66,7 @@ export default function ApplyPage() {
   const [briefLoading, setBriefLoading] = useState(false);
   const [briefError, setBriefError] = useState("");
   const [turnstileToken, setTurnstileToken] = useState("");
+  const turnstileRef = useRef<TurnstileInstance>(null);
 
   useEffect(() => {
     const init = async () => {
@@ -297,6 +298,8 @@ export default function ApplyPage() {
       setError("Network error. Please try again.");
     } finally {
       setSubmitting(false);
+      setTurnstileToken("");
+      turnstileRef.current?.reset();
     }
   };
 
@@ -697,6 +700,7 @@ export default function ApplyPage() {
 
             {/* Submit */}
             <Turnstile
+              ref={turnstileRef}
               siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ""}
               onSuccess={setTurnstileToken}
               onExpire={() => setTurnstileToken("")}

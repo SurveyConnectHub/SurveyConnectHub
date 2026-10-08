@@ -37,7 +37,7 @@ export const metadata: Metadata = {
 	openGraph: {
 		type: "website",
 		locale: "en_US",
-		url: "https://survey-connect-hub.vercel.app",
+		url: "/",
 		siteName: "SurveyConnectHub",
 		title: "SurveyConnectHub – Marketplace for Geospatial Professionals",
 		description:

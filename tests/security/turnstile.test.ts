@@ -19,6 +19,7 @@ describe("Turnstile verification", () => {
 	});
 
 	it("fails closed when the server secret is missing", async () => {
+		vi.stubEnv("TURNSTILE_SECRET_KEY", "");
 		const fetchMock = vi.fn();
 		vi.stubGlobal("fetch", fetchMock);
 

@@ -50,5 +50,7 @@ describe("admin alert API", () => {
 		const email = send.mock.calls[0][0];
 		expect(email.html).not.toContain("<script>");
 		expect(email.html).toContain("&lt;script&gt;");
+		expect(email.html).not.toContain("<img src=x onerror=alert(1)>");
+		expect(email.html).toContain("&lt;img src=x onerror=alert(1)&gt;");
 	});
 });

@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import BackButton from "@/components/ui/BackButton";
-import { Turnstile } from "@marsidev/react-turnstile";
+import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 
 export default function ForgotPasswordPage() {
 	const supabase = createClient();
@@ -13,6 +13,7 @@ export default function ForgotPasswordPage() {
 	const [error, setError] = useState("");
 	const [sent, setSent] = useState(false);
 	const [turnstileToken, setTurnstileToken] = useState("");
+	const turnstileRef = useRef<TurnstileInstance>(null);
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -39,6 +40,8 @@ export default function ForgotPasswordPage() {
 			);
 		} finally {
 			setLoading(false);
+			setTurnstileToken("");
+			turnstileRef.current?.reset();
 		}
 	};
 
@@ -102,6 +105,7 @@ export default function ForgotPasswordPage() {
 						</div>
 
 						<Turnstile
+							ref={turnstileRef}
 							siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ""}
 							onSuccess={setTurnstileToken}
 							onExpire={() => setTurnstileToken("")}

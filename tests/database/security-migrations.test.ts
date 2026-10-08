@@ -11,8 +11,8 @@ const migration = (name: string) =>
 describe("security migration contracts", () => {
 	it("locks profile privilege fields during self-updates", () => {
 		const sql = migration("20261007_lock_profiles_privileged_fields.sql");
-		expect(sql).toMatch(/current_profile\.role\s*=\s*role/i);
-		expect(sql).toMatch(/current_profile\.is_admin\s+IS\s+NOT\s+DISTINCT\s+FROM\s+is_admin/i);
+		expect(sql).toMatch(/NEW\.role\s+IS\s+NOT\s+DISTINCT\s+FROM\s+OLD\.role/i);
+		expect(sql).toMatch(/NEW\.is_admin\s+IS\s+NOT\s+DISTINCT\s+FROM\s+OLD\.is_admin/i);
 	});
 
 	it("creates safe public views and webhook idempotency storage", () => {
@@ -21,5 +21,6 @@ describe("security migration contracts", () => {
 		expect(sql).toMatch(/public_professional_profiles/i);
 		expect(sql).toMatch(/paystack_webhook_events/i);
 		expect(sql).toMatch(/event_key\s+text\s+PRIMARY\s+KEY/i);
+		expect(sql).toMatch(/processed_at\s+timestamptz/i);
 	});
 });

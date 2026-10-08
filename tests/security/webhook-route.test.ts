@@ -2,16 +2,28 @@ import crypto from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const insert = vi.fn();
+const select = vi.fn();
 
 vi.mock("@/lib/supabase/server", () => ({
 	createServiceClient: vi.fn(() => ({
-		from: vi.fn(() => ({ insert })),
+		from: vi.fn(() => ({
+			insert,
+			select: vi.fn(() => ({
+				eq: vi.fn(() => ({
+					maybeSingle: select,
+				})),
+			})),
+			update: vi.fn(() => ({
+				eq: vi.fn().mockResolvedValue({ error: null }),
+			})),
+		})),
 	})),
 }));
 
 describe("Paystack webhook security", () => {
 	beforeEach(() => {
 		vi.resetAllMocks();
+		select.mockResolvedValue({ data: { processed_at: "2026-10-08T00:00:00Z" }, error: null });
 		vi.stubEnv("PAYSTACK_SECRET_KEY", "paystack-test-secret");
 	});
 
@@ -69,5 +81,28 @@ describe("Paystack webhook security", () => {
 			event_name: "charge.success",
 			reference: "duplicate-reference",
 		});
+
+	});
+
+	it("allows an incomplete event record to be retried", async () => {
+		insert.mockResolvedValue({ error: { code: "23505" } });
+		select.mockResolvedValue({ data: { processed_at: null }, error: null });
+		const body = JSON.stringify({ event: "transfer.success", data: {} });
+		const signature = crypto
+			.createHmac("sha512", "paystack-test-secret")
+			.update(body)
+			.digest("hex");
+		const { POST } = await import("@/app/api/webhooks/paystack/route");
+
+		const response = await POST(
+			new Request("http://localhost/api/webhooks/paystack", {
+				method: "POST",
+				headers: { "x-paystack-signature": signature },
+				body,
+			}) as never,
+		);
+
+		expect(response.status).toBe(200);
+		expect(await response.json()).toEqual({ received: true });
 	});
 });

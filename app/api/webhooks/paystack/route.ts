@@ -54,9 +54,20 @@ export async function POST(request: NextRequest) {
         reference: event.data?.reference ?? null,
       });
     if (eventInsertError?.code === "23505") {
-      return NextResponse.json({ received: true, duplicate: true });
+      const { data: existingEvent, error: existingEventError } = await supabase
+        .from("paystack_webhook_events")
+        .select("processed_at")
+        .eq("event_key", eventKey)
+        .maybeSingle();
+      if (existingEventError) {
+        console.error("Failed to inspect Paystack webhook event:", existingEventError);
+        return NextResponse.json({ error: "Webhook unavailable" }, { status: 503 });
+      }
+      if (existingEvent?.processed_at) {
+        return NextResponse.json({ received: true, duplicate: true });
+      }
     }
-    if (eventInsertError) {
+    if (eventInsertError && eventInsertError.code !== "23505") {
       console.error("Failed to record Paystack webhook event:", eventInsertError);
       return NextResponse.json({ error: "Webhook unavailable" }, { status: 503 });
     }
@@ -66,6 +77,7 @@ export async function POST(request: NextRequest) {
       const { reference, metadata, status } = event.data;
 
       if (status !== "success") {
+        await supabase.from("paystack_webhook_events").update({ processed_at: new Date().toISOString() }).eq("event_key", eventKey);
         return NextResponse.json({ received: true });
       }
 
@@ -73,6 +85,7 @@ export async function POST(request: NextRequest) {
       const milestoneId = metadata?.milestoneId;
 
       if (!contractId) {
+        await supabase.from("paystack_webhook_events").update({ processed_at: new Date().toISOString() }).eq("event_key", eventKey);
         return NextResponse.json({ received: true });
       }
 
@@ -123,6 +136,7 @@ export async function POST(request: NextRequest) {
             }
           }
         }
+        await supabase.from("paystack_webhook_events").update({ processed_at: new Date().toISOString() }).eq("event_key", eventKey);
         return NextResponse.json({ received: true });
       }
 
@@ -147,6 +161,7 @@ export async function POST(request: NextRequest) {
           paidAmountKobo,
           currency: event.data.currency,
         });
+        await supabase.from("paystack_webhook_events").update({ processed_at: new Date().toISOString() }).eq("event_key", eventKey);
         return NextResponse.json({ received: true });
       }
 
@@ -179,6 +194,7 @@ export async function POST(request: NextRequest) {
     if (event.event === "transfer.success") {
       const { reference, amount, recipient } = event.data || {};
       // Payment was successfully transferred — status is final
+      await supabase.from("paystack_webhook_events").update({ processed_at: new Date().toISOString() }).eq("event_key", eventKey);
       return NextResponse.json({ received: true });
     }
 
@@ -263,6 +279,7 @@ export async function POST(request: NextRequest) {
           // Non-critical
         }
       }
+      await supabase.from("paystack_webhook_events").update({ processed_at: new Date().toISOString() }).eq("event_key", eventKey);
       return NextResponse.json({ received: true });
     }
 

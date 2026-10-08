@@ -16,7 +16,7 @@ A marketplace for geospatial professionals. Clients post surveying, GIS, and dro
 
 ### Prerequisites
 
-- Node.js 18+
+- Node.js 22.12+
 - Supabase project (local or hosted)
 - Paystack account (test/live keys)
 - Resend account (for email)

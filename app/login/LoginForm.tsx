@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { Eye, EyeOff } from "lucide-react";
-import { Turnstile } from "@marsidev/react-turnstile";
+import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 
 export default function LoginForm() {
 	const router = useRouter();
@@ -21,6 +21,7 @@ export default function LoginForm() {
 	const [showPassword, setShowPassword] = useState(false);
 	const [resetSuccess, setResetSuccess] = useState(false);
 	const [turnstileToken, setTurnstileToken] = useState("");
+	const turnstileRef = useRef<TurnstileInstance>(null);
 
 	useEffect(() => {
 		setResetSuccess(searchParams.get("reset") === "success");
@@ -90,6 +91,8 @@ export default function LoginForm() {
 			setError(err.message || "Invalid email or password");
 		} finally {
 			setLoading(false);
+			setTurnstileToken("");
+			turnstileRef.current?.reset();
 		}
 	};
 
@@ -178,6 +181,7 @@ export default function LoginForm() {
 
 					{/* Submit Button */}
 					<Turnstile
+						ref={turnstileRef}
 						siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ""}
 						onSuccess={setTurnstileToken}
 						onExpire={() => setTurnstileToken("")}

@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { createServiceClient } from "@/lib/supabase/service-client";
 import { JOB_TYPE_OPTIONS } from "@/lib/constants";
 import { Building2, Eye, EyeOff, Map } from "lucide-react";
-import { Turnstile } from "@marsidev/react-turnstile";
+import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 
 const DISCIPLINE_PRESETS = JOB_TYPE_OPTIONS.filter((d) => d !== "Other");
 
@@ -35,6 +35,7 @@ export default function SignupPage() {
 	const [showPassword, setShowPassword] = useState(false);
 	const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 	const [turnstileToken, setTurnstileToken] = useState("");
+	const turnstileRef = useRef<TurnstileInstance>(null);
 
 	const toggleDiscipline = (discipline: string) => {
 		setFormData((prev) => ({
@@ -193,6 +194,8 @@ export default function SignupPage() {
 			setError(err.message || "Something went wrong. Please try again.");
 		} finally {
 			setLoading(false);
+			setTurnstileToken("");
+			turnstileRef.current?.reset();
 		}
 	};
 
@@ -518,6 +521,7 @@ export default function SignupPage() {
 
 					{/* Submit Button */}
 					<Turnstile
+						ref={turnstileRef}
 						siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ""}
 						onSuccess={setTurnstileToken}
 						onExpire={() => setTurnstileToken("")}

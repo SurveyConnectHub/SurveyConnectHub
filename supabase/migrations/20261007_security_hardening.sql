@@ -48,6 +48,7 @@ SELECT
   pp.service_area_label,
   pp.service_area_radius_km,
   pp.verification_status,
+  pp.created_at,
   p.full_name,
   p.username,
   p.country,
@@ -103,6 +104,9 @@ CREATE TABLE IF NOT EXISTS public.paystack_webhook_events (
   event_key text PRIMARY KEY,
   event_name text NOT NULL,
   reference text,
-  received_at timestamptz NOT NULL DEFAULT now()
+  received_at timestamptz NOT NULL DEFAULT now(),
+  processed_at timestamptz
 );
+ALTER TABLE public.paystack_webhook_events
+  ADD COLUMN IF NOT EXISTS processed_at timestamptz;
 ALTER TABLE public.paystack_webhook_events ENABLE ROW LEVEL SECURITY;

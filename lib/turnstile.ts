@@ -12,15 +12,22 @@ export async function verifyTurnstileToken(
 	if (remoteIp) body.set("remoteip", remoteIp);
 
 	try {
-		const response = await fetch(TURNSTILE_VERIFY_URL, {
-			method: "POST",
-			headers: { "Content-Type": "application/x-www-form-urlencoded" },
-			body,
-			cache: "no-store",
-		});
-		if (!response.ok) return false;
-		const result = (await response.json()) as { success?: boolean };
-		return result.success === true;
+		const controller = new AbortController();
+		const timeoutId = setTimeout(() => controller.abort(), 5000);
+		try {
+			const response = await fetch(TURNSTILE_VERIFY_URL, {
+				method: "POST",
+				headers: { "Content-Type": "application/x-www-form-urlencoded" },
+				body,
+				cache: "no-store",
+				signal: controller.signal,
+			});
+			if (!response.ok) return false;
+			const result = (await response.json()) as { success?: boolean };
+			return result.success === true;
+		} finally {
+			clearTimeout(timeoutId);
+		}
 	} catch (error) {
 		console.error("Turnstile verification failed:", error);
 		return false;

@@ -220,12 +220,12 @@ export default function ProfessionalProfilePage() {
 
 				setViewerRole(viewerProfile?.role || "");
 
+				const professionalQuery =
+					user.id === id
+						? supabase.from("professional_profiles").select("*")
+						: supabase.from("public_professional_profiles").select("*");
 				const [professionalResult, profileResult] = await Promise.all([
-					supabase
-						.from("public_professional_profiles")
-						.select("*")
-						.eq("id", id)
-						.maybeSingle(),
+					professionalQuery.eq("id", id).maybeSingle(),
 					supabase
 						.from("public_profiles")
 						.select("full_name, country, bio")
