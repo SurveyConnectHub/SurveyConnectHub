@@ -3,6 +3,7 @@ import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import PublicLayoutShell from "@/components/PublicLayoutShell";
+import { Analytics } from "@vercel/analytics/next";
 
 const inter = Inter({
 	subsets: ["latin"],
@@ -79,6 +80,7 @@ export default function RootLayout({
 				<ThemeProvider>
 					<PublicLayoutShell>{children}</PublicLayoutShell>
 				</ThemeProvider>
+				<Analytics />
 			</body>
 		</html>
 	);
