@@ -523,6 +523,14 @@ export default function SignupPage() {
 					<Turnstile
 						ref={turnstileRef}
 						siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ""}
+						scriptOptions={{
+							nonce:
+								typeof document === "undefined"
+									? ""
+									: document
+											.querySelector('meta[name="csp-nonce"]')
+											?.getAttribute("content") ?? "",
+						}}
 						onSuccess={setTurnstileToken}
 						onExpire={() => setTurnstileToken("")}
 						onError={() => setTurnstileToken("")}

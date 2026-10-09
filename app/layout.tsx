@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
@@ -65,17 +66,22 @@ export const metadata: Metadata = {
 	},
 };
 
-export default function RootLayout({
+export default async function RootLayout({
 	children,
 }: Readonly<{
 	children: React.ReactNode;
 }>) {
+	const nonce = (await headers()).get("x-nonce") ?? "";
+
 	return (
 		<html
 			lang="en"
 			suppressHydrationWarning
 			className={`${inter.variable} ${jetbrainsMono.variable}`}
 		>
+			<head>
+				<meta name="csp-nonce" content={nonce} />
+			</head>
 			<body>
 				<ThemeProvider>
 					<PublicLayoutShell>{children}</PublicLayoutShell>
