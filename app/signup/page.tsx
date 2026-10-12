@@ -4,7 +4,6 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { createServiceClient } from "@/lib/supabase/service-client";
 import { JOB_TYPE_OPTIONS } from "@/lib/constants";
 import { Building2, Eye, EyeOff, Map } from "lucide-react";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
@@ -144,52 +143,34 @@ export default function SignupPage() {
 				return;
 			}
 
-			const serviceSupabase = createServiceClient();
-			const { error: profileError } = await serviceSupabase.from("profiles").insert({
-				id: authData.user.id,
-				role: formData.role,
-				full_name: formData.fullName,
-				username:
-					formData.role === "client" ? formData.username.trim() : null,
-				email: formData.email,
-				phone: formData.phone,
-				country: formData.country,
+			// Profile rows are created on the server (needs the service role key,
+			// which must never be bundled into browser code).
+			const completeResponse = await fetch("/api/auth/complete-signup", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					role: formData.role,
+					fullName: formData.fullName,
+					username: formData.username,
+					phone: formData.phone,
+					country: formData.country,
+					primaryDisciplines: formData.primaryDisciplines,
+				}),
 			});
+			const completeResult = await completeResponse.json().catch(() => null);
 
-			if (profileError) {
-				if (profileError.code === "23505") {
-					setError(
-						"That username is already taken. Please choose another one.",
-					);
-					return;
-				}
-				throw profileError;
+			if (!completeResponse.ok) {
+				throw new Error(
+					completeResult?.error ||
+						"Could not finish creating your account. Please try again.",
+				);
 			}
 
-			if (formData.role === "client") {
-				const { error: clientError } = await serviceSupabase
-					.from("client_profiles")
-					.insert({ id: authData.user.id });
-
-				if (clientError) throw clientError;
-
-				router.push("/dashboard/client");
-			} else {
-				const { error: professionalError } = await serviceSupabase
-					.from("professional_profiles")
-					.insert({
-						id: authData.user.id,
-						profession_type: "other",
-						years_experience: 0,
-						license_number: null,
-						verification_status: "unverified",
-						primary_disciplines: formData.primaryDisciplines,
-					});
-
-				if (professionalError) throw professionalError;
-
-				router.push("/onboarding/professional");
-			}
+			router.push(
+				formData.role === "client"
+					? "/dashboard/client"
+					: "/onboarding/professional",
+			);
 		} catch (err: any) {
 			setError(err.message || "Something went wrong. Please try again.");
 		} finally {
