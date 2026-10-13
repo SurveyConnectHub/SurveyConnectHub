@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { isKnownRoute, isPublicPath } from "@/lib/routes";
 
 function getEnvOrThrow(key: string): string {
 	const value = process.env[key];
@@ -44,6 +45,12 @@ export async function middleware(request: NextRequest) {
 		request: { headers: requestHeaders },
 	});
 	applySecurityHeaders(supabaseResponse, contentSecurityPolicy);
+
+	// Paths that are not part of the app (bot scans like /wp-admin, /llms.txt)
+	// get a real 404 from Next.js instead of a login redirect. No auth lookup.
+	if (!isKnownRoute(request.nextUrl.pathname)) {
+		return supabaseResponse;
+	}
 
 	const supabaseUrl = getEnvOrThrow("NEXT_PUBLIC_SUPABASE_URL");
 	const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? getEnvOrThrow("NEXT_PUBLIC_SUPABASE_ANON_KEY");
@@ -125,17 +132,7 @@ export async function middleware(request: NextRequest) {
 		}
 	}
 
-	if (
-		!user &&
-		!request.nextUrl.pathname.startsWith("/login") &&
-		!request.nextUrl.pathname.startsWith("/signup") &&
-		!request.nextUrl.pathname.startsWith("/forgot-password") &&
-		!request.nextUrl.pathname.startsWith("/reset-password") &&
-		!request.nextUrl.pathname.startsWith("/terms") &&
-		!request.nextUrl.pathname.startsWith("/privacy") &&
-		!request.nextUrl.pathname.startsWith("/api/paystack") &&
-		request.nextUrl.pathname !== "/"
-	) {
+	if (!user && !isPublicPath(request.nextUrl.pathname)) {
 		const url = request.nextUrl.clone();
 		url.pathname = "/login";
 		return NextResponse.redirect(url);

@@ -32,6 +32,8 @@ function JobsPageContent() {
 	const [loading, setLoading] = useState(true);
 	const [user, setUser] = useState<any>(null);
 	const [profile, setProfile] = useState<any>(null);
+	// True for logged-out visitors: they browse the safe `public_jobs` view.
+	const [isPublic, setIsPublic] = useState(false);
 	const [search, setSearch] = useState("");
 	const [filterProfession, setFilterProfession] = useState("");
 	const [filterBudget, setFilterBudget] = useState("");
@@ -43,15 +45,21 @@ function JobsPageContent() {
 		Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
 	const pageIndex = currentPage - 1;
 
-	const fetchJobs = useCallback(async () => {
-		let query = supabase
-			.from("jobs")
-			.select(`*, profiles(full_name, country)`, { count: "exact" })
-			.eq("status", "open");
+	const fetchJobs = useCallback(async (loggedIn: boolean) => {
+		// Logged-out visitors only ever read the public view (open jobs, safe
+		// columns). Signed-in users read the full table as before.
+		let query = loggedIn
+			? supabase
+					.from("jobs")
+					.select(`*, profiles(full_name, country)`, { count: "exact" })
+					.eq("status", "open")
+			: supabase.from("public_jobs").select("*", { count: "exact" });
 
 		if (search.trim()) {
 			const term = search.trim();
-			query = query.or(`title.ilike.%${term}%,description.ilike.%${term}%`);
+			query = loggedIn
+				? query.or(`title.ilike.%${term}%,description.ilike.%${term}%`)
+				: query.ilike("title", `%${term}%`);
 		}
 
 		if (filterProfession) {
@@ -81,7 +89,7 @@ function JobsPageContent() {
 			return;
 		}
 
-		setJobs(data || []);
+		setJobs((data || []) as unknown as typeof jobs);
 		setTotalCount(count || 0);
 	}, [
 		filterBudget,
@@ -95,33 +103,34 @@ function JobsPageContent() {
 	useEffect(() => {
 		const getData = async () => {
 			setLoading(true);
+			let loggedIn = false;
 			try {
 				const {
 					data: { user },
 				} = await supabase.auth.getUser();
-				if (!user) {
-					router.push("/login");
-					return;
+
+				if (user) {
+					const { data: profile } = await supabase
+						.from("profiles")
+						.select("role, full_name")
+						.eq("id", user.id)
+						.single();
+
+					setUser(user);
+					setProfile(profile);
+					loggedIn = true;
 				}
-
-				const { data: profile } = await supabase
-					.from("profiles")
-					.select("role, full_name")
-					.eq("id", user.id)
-					.single();
-
-				setUser(user);
-				setProfile(profile);
 			} catch {
-				router.push("/login");
-				return;
+				// Treat an auth lookup failure like a logged-out visit.
+				loggedIn = false;
 			}
-			await fetchJobs();
+			setIsPublic(!loggedIn);
+			await fetchJobs(loggedIn);
 			setLoading(false);
 		};
 
 		getData().catch(() => setLoading(false));
-	}, [fetchJobs, router, supabase]);
+	}, [fetchJobs, supabase]);
 
 	// Reset to page 1 when filters change (intentionally omits currentPage to avoid loops)
 	const filterKey = `${search}:${filterProfession}:${filterBudget}:${filterRemote}`;
@@ -177,22 +186,43 @@ function JobsPageContent() {
 		<div className="min-h-screen bg-gray-50 dark:bg-gray-950 transition-colors duration-300">
 			<nav className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4 flex items-center justify-between">
 				<div className="flex items-center gap-4">
-					<BackButton
-						href={
-							profile?.role === "client"
-								? "/dashboard/client"
-								: "/dashboard/professional"
-						}
-						label="Dashboard"
-					/>
+					{isPublic ? (
+						<BackButton href="/" label="Home" />
+					) : (
+						<BackButton
+							href={
+								profile?.role === "client"
+									? "/dashboard/client"
+									: "/dashboard/professional"
+							}
+							label="Dashboard"
+						/>
+					)}
 					<h1 className="text-xl font-bold text-gray-900 dark:text-white">
 						Survey<span className="text-green-600">ConnectHub</span>
 					</h1>
 				</div>
 				<div className="flex items-center gap-4">
-					<span className="text-gray-600 dark:text-gray-300 text-sm">
-						{profile?.full_name}
-					</span>
+					{isPublic ? (
+						<>
+							<Link
+								href="/login"
+								className="text-gray-600 dark:text-gray-300 text-sm hover:text-gray-900 dark:hover:text-white"
+							>
+								Log in
+							</Link>
+							<Link
+								href="/signup"
+								className="bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors"
+							>
+								Sign up
+							</Link>
+						</>
+					) : (
+						<span className="text-gray-600 dark:text-gray-300 text-sm">
+							{profile?.full_name}
+						</span>
+					)}
 				</div>
 			</nav>
 
@@ -325,28 +355,36 @@ function JobsPageContent() {
 											{getProfessionLabel(job.profession_type)}
 										</p>
 
+										{!isPublic && (
 										<p className="text-gray-600 dark:text-gray-400 text-sm mb-4 line-clamp-2">
-											{job.description}
+										  {job.description}
 										</p>
+									)}
 
 										<div className="flex items-center gap-4 text-xs text-gray-400 dark:text-gray-500 flex-wrap">
 											<span className="flex items-center gap-1">
 												<MapPin className="w-3 h-3" />
-												{job.location || "Remote"}
+												{isPublic
+												? [job.location_city, job.location_country]
+														.filter(Boolean)
+														.join(", ") || "Remote"
+												: job.location || "Remote"}
 											</span>
 											<span className="flex items-center gap-1">
 												<Calendar className="w-3 h-3" />
 												Posted {formatDate(job.created_at)}
 											</span>
+											{!isPublic && (
 											<span className="flex items-center gap-1">
-												<User className="w-3 h-3" />
-												{job.profiles?.full_name}
+											 <User className="w-3 h-3" />
+											  {job.profiles?.full_name}
 											</span>
+										)}
 										</div>
 									</div>
 
 									<div className="text-right shrink-0 flex flex-col items-end gap-2">
-										<BookmarkButton jobId={job.id} />
+										{!isPublic && <BookmarkButton jobId={job.id} />}
 										<p className="text-2xl font-bold text-gray-900 dark:text-white">
 											{formatBudget(job.budget, job.budget_type)}
 										</p>
@@ -355,8 +393,16 @@ function JobsPageContent() {
 												? "per hour"
 												: "fixed price"}
 										</p>
-										{profile?.role === "professional" && (
-											<Link
+										{isPublic && (
+										<Link
+											href="/signup"
+											className="bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors"
+										>
+											Sign up to apply
+										</Link>
+									)}
+									{profile?.role === "professional" && (
+										<Link
 												href={`/jobs/${job.id}/apply`}
 												className="bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors"
 											>
