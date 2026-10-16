@@ -48,6 +48,8 @@ restore.js
 new design
 process and report.txt
 opencode-dev-pid.txt
+dump.js 
+full_dump.sql
 
 # local security review artifacts
 SECURITY-REVIEW.md

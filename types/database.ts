@@ -37,6 +37,8 @@ export interface Profile {
 	notification_email: boolean;
 	notification_messages: boolean;
 	notification_marketing: boolean;
+	is_deleted: boolean;
+	deleted_at: string | null;
 	created_at: string;
 	updated_at: string;
 }

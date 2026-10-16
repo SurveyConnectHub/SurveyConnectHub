@@ -66,6 +66,12 @@ export default function AccountSettingsPage() {
 	const supabase = useMemo(() => createClient(), []);
 	const [loading, setLoading] = useState(true);
 	const [isSigningOut, setIsSigningOut] = useState(false);
+	const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+	const [deletePassword, setDeletePassword] = useState("");
+	const [deleteConfirmText, setDeleteConfirmText] = useState("");
+	const [deleteError, setDeleteError] = useState("");
+	const [showDeletePassword, setShowDeletePassword] = useState(false);
+	const [isDeleting, setIsDeleting] = useState(false);
 	const [signOutModalOpen, setSignOutModalOpen] = useState(false);
 	const { isLoading: isSavingProfile, withLoading: withProfileLoading } =
 		useLoadingState();
@@ -422,6 +428,51 @@ export default function AccountSettingsPage() {
 		setSignOutModalOpen(false);
 		await supabase.auth.signOut();
 		router.push("/login");
+	};
+
+	const openDeleteModal = () => {
+		setDeletePassword("");
+		setDeleteConfirmText("");
+		setDeleteError("");
+		setShowDeletePassword(false);
+		setDeleteModalOpen(true);
+	};
+
+	const confirmDeleteAccount = async () => {
+		setDeleteError("");
+		if (!deletePassword) {
+			setDeleteError("Enter your password to continue");
+			return;
+		}
+		if (deleteConfirmText !== "DELETE") {
+			setDeleteError("Type DELETE to confirm");
+			return;
+		}
+
+		setIsDeleting(true);
+		try {
+			const response = await fetch("/api/account/delete", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					password: deletePassword,
+					confirm: deleteConfirmText,
+				}),
+			});
+			const result = await response.json().catch(() => null);
+			if (!response.ok) {
+				setDeleteError(
+					result?.error || "Could not delete your account. Please try again.",
+				);
+				return;
+			}
+			await supabase.auth.signOut();
+			router.push("/login");
+		} catch {
+			setDeleteError("Could not delete your account. Please try again.");
+		} finally {
+			setIsDeleting(false);
+		}
 	};
 
 	if (loading) {
@@ -856,7 +907,119 @@ export default function AccountSettingsPage() {
 						{isSigningOut ? "Signing out..." : "Sign out"}
 					</button>
 				</div>
+
+				<div className="bg-white dark:bg-gray-900 rounded-2xl border border-red-100 dark:border-red-900/40 p-6 space-y-4">
+					<h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+						Delete Account
+					</h3>
+					<p className="text-sm text-gray-500 dark:text-gray-400">
+						Your personal details, payout details and portfolio are erased and
+						you can no longer sign in. Your open jobs are closed. Records that
+						other people rely on, such as past contracts, payments and
+						messages, are kept without your personal details. This cannot be
+						undone. You cannot delete your account while a contract is in
+						progress.
+					</p>
+					<button
+						type="button"
+						onClick={openDeleteModal}
+						className="px-5 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold"
+					>
+						Delete my account
+					</button>
+				</div>
 			</div>
+
+			{deleteModalOpen && (
+				<SettingsModal
+					title="Delete your account?"
+					onClose={() => {
+						if (!isDeleting) setDeleteModalOpen(false);
+					}}
+				>
+					<div className="mt-4 space-y-4">
+						<p className="text-sm text-gray-500 dark:text-gray-400">
+							This permanently erases your personal details and signs you out.
+							It cannot be undone.
+						</p>
+						{deleteError && (
+							<div
+								role="alert"
+								className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm text-red-700 dark:text-red-400"
+							>
+								{deleteError}
+							</div>
+						)}
+						<div>
+							<label
+								htmlFor="delete-password"
+								className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+							>
+								Your password
+							</label>
+							<div className="relative">
+								<input
+									id="delete-password"
+									type={showDeletePassword ? "text" : "password"}
+									autoComplete="current-password"
+									value={deletePassword}
+									onChange={(e) => setDeletePassword(e.target.value)}
+									className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 pr-11 bg-white dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
+								/>
+								<button
+									type="button"
+									onClick={() => setShowDeletePassword((prev) => !prev)}
+									className="absolute inset-y-0 right-0 px-3 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+									aria-label={
+										showDeletePassword ? "Hide password" : "Show password"
+									}
+								>
+									{showDeletePassword ? (
+										<EyeOff className="w-4 h-4" />
+									) : (
+										<Eye className="w-4 h-4" />
+									)}
+								</button>
+							</div>
+						</div>
+						<div>
+							<label
+								htmlFor="delete-confirm"
+								className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+							>
+								Type DELETE to confirm
+							</label>
+							<input
+								id="delete-confirm"
+								type="text"
+								autoComplete="off"
+								value={deleteConfirmText}
+								onChange={(e) => setDeleteConfirmText(e.target.value)}
+								className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 bg-white dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
+							/>
+						</div>
+						<div className="flex items-center justify-end gap-3 pt-1">
+							<button
+								type="button"
+								onClick={() => setDeleteModalOpen(false)}
+								disabled={isDeleting}
+								className="rounded-xl border border-gray-200 dark:border-gray-700 px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50"
+							>
+								Cancel
+							</button>
+							<LoadingButton
+								type="button"
+								onClick={confirmDeleteAccount}
+								isLoading={isDeleting}
+								loadingText="Deleting..."
+								className="rounded-xl px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 disabled:opacity-70"
+							>
+								Delete account
+							</LoadingButton>
+						</div>
+					</div>
+				</SettingsModal>
+			)}
 
 			{passwordModalOpen && (
 				<SettingsModal

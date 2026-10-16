@@ -26,7 +26,7 @@ function createContentSecurityPolicy(nonce: string): string {
 		"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
 		"img-src 'self' data: blob: https:",
 		"font-src 'self' data: https://fonts.gstatic.com",
-		"connect-src 'self' https://*.supabase.co https://api.paystack.co https://challenges.cloudflare.com",
+		"connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.paystack.co https://challenges.cloudflare.com",
 		"frame-src 'self' https://challenges.cloudflare.com",
 	].join("; ");
 }
@@ -112,30 +112,53 @@ export async function middleware(request: NextRequest) {
 		null;
 	let professionalProfile: { onboarding_completed?: boolean | null } | null =
 		null;
+	let deletedAccount = false;
 	if (user) {
+		const userId = user.id;
 		const { data } = await supabase
 			.from("profiles")
-			.select("role, is_admin")
-			.eq("id", user.id)
+			.select("role, is_admin, is_deleted")
+			.eq("id", userId)
 			.maybeSingle();
 
-		profile = data ?? null;
+		// A deleted account is treated as logged out, even if its session cookie
+		// is still valid for a little while.
+		if (data?.is_deleted) {
+			deletedAccount = true;
+			user = null;
+		} else {
+			profile = data ?? null;
+		}
 
-		if (data?.role === "professional") {
+		if (!deletedAccount && data?.role === "professional") {
 			const { data: professionalData } = await supabase
 				.from("professional_profiles")
 				.select("onboarding_completed")
-				.eq("id", user.id)
+				.eq("id", userId)
 				.maybeSingle();
 
 			professionalProfile = professionalData;
 		}
 	}
 
+	const clearAuthCookies = (response: NextResponse) => {
+		for (const cookie of request.cookies.getAll()) {
+			if (SUPABASE_AUTH_COOKIE.test(cookie.name)) {
+				response.cookies.set(cookie.name, "", { path: "/", maxAge: 0 });
+			}
+		}
+	};
+
 	if (!user && !isPublicPath(request.nextUrl.pathname)) {
 		const url = request.nextUrl.clone();
 		url.pathname = "/login";
-		return NextResponse.redirect(url);
+		const redirect = NextResponse.redirect(url);
+		if (deletedAccount) clearAuthCookies(redirect);
+		return redirect;
+	}
+
+	if (deletedAccount) {
+		clearAuthCookies(supabaseResponse);
 	}
 
 	if (
